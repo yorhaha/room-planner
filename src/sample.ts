@@ -137,13 +137,13 @@ export function makeSampleProject(): Project {
       { id: 'f_nightstand_2', type: 'nightstand', roomId: 'room_bedroom', x: 8.45, z: 0.42, rotation: 0 },
       { id: 'f_wardrobe', type: 'wardrobe', roomId: 'room_bedroom', x: 9.02, z: 2.62, rotation: 90 },
       { id: 'f_plant_bedroom', type: 'plant', roomId: 'room_bedroom', x: 5.8, z: 3.15, rotation: 0 },
-      { id: 'f_counter', type: 'counter', roomId: 'room_kitchen', x: 5.78, z: 5.15, rotation: -90 },
+      { id: 'f_counter', type: 'counter', roomId: 'room_kitchen', x: 5.8, z: 5.15, rotation: -90 },
       { id: 'f_stove', type: 'stove', roomId: 'room_kitchen', x: 5.78, z: 6.45, rotation: -90 },
       { id: 'f_fridge', type: 'fridge', roomId: 'room_kitchen', x: 7.95, z: 4.03, rotation: 0 },
       { id: 'f_table', type: 'diningTable', roomId: 'room_kitchen', x: 7.15, z: 5.7, rotation: 0 },
       { id: 'f_chair_1', type: 'chair', roomId: 'room_kitchen', x: 7.15, z: 4.95, rotation: 0 },
       { id: 'f_chair_2', type: 'chair', roomId: 'room_kitchen', x: 7.15, z: 6.42, rotation: 180 },
-      { id: 'f_sideboard', type: 'sideboard', roomId: 'room_kitchen', x: 8.13, z: 5.7, rotation: 90 },
+      { id: 'f_sideboard', type: 'sideboard', roomId: 'room_kitchen', x: 8.1, z: 5.7, rotation: 90 },
     ],
   };
 }

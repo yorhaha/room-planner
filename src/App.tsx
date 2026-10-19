@@ -43,9 +43,14 @@ function StatusBar() {
               <span><kbd>⌘Z</kbd> 撤销</span>
               <span><kbd>1</kbd>/<kbd>2</kbd> 切换视图</span>
             </>
+          ) : tool === 'measure' ? (
+            <span className="status-accent">
+              点击两个点测量距离 · 再次点击重新测量 · <kbd>Esc</kbd> 退出
+            </span>
           ) : (
             <span className="status-accent">
-              点击墙体放置{tool === 'door' ? '门' : '窗'} · <kbd>Esc</kbd> 退出
+              点击墙体放置
+              {tool === 'door' ? '门' : tool === 'window' ? '窗' : '垭口'} · <kbd>Esc</kbd> 退出
             </span>
           )
         ) : (
@@ -111,12 +116,12 @@ function HelpModal() {
               <div>
                 <span>03</span>
                 <strong>开门窗、放家具</strong>
-                <p>选择「门 / 窗」后点墙体开洞；门可切换平开 / 推拉、内开 / 外开、铰链侧与门颜色，家具拖角可缩放。</p>
+                <p>选择「门 / 窗 / 垭口」后点墙体开洞；门可切换平开 / 推拉、内开 / 外开、铰链侧与门颜色，家具拖角可缩放。</p>
               </div>
               <div>
                 <span>04</span>
-                <strong>3D 预览</strong>
-                <p>右上角切换到 3D，可旋转观察；墙体支持半透明 / 隐藏。</p>
+                <strong>检查与导出</strong>
+                <p>尺寸标注默认常显，可用「测量」量任意两点；重叠或越界的家具会红色提示。右上角可导出 PNG、PDF 或 JSON。</p>
               </div>
             </div>
           </section>
@@ -127,6 +132,8 @@ function HelpModal() {
               <div><kbd>V</kbd><span>选择工具</span></div>
               <div><kbd>D</kbd><span>添加门</span></div>
               <div><kbd>W</kbd><span>添加窗</span></div>
+              <div><kbd>O</kbd><span>添加垭口</span></div>
+              <div><kbd>M</kbd><span>测量距离</span></div>
               <div><kbd>R</kbd><span>旋转家具 15°</span></div>
               <div><kbd>⇧ + R</kbd><span>反向旋转 15°</span></div>
               <div><kbd>⇧ + 方向键</kbd><span>较大步长移动</span></div>
@@ -146,7 +153,7 @@ function HelpModal() {
             <h3>关于保存</h3>
             <p>
               所有改动会在约半秒内自动保存到浏览器本地（localStorage）。同一浏览器重新打开即可继续编辑；
-              换设备或清理浏览器数据前，请使用顶栏「导出」保存 JSON 备份。
+              换设备或清理浏览器数据前，请使用顶栏「导出」保存 JSON 备份，也可导出 PNG / PDF 分享方案。
             </p>
             <div className="help-feature-row">
               <span><PlanIcon size={15} /> 平面编辑</span>
@@ -253,6 +260,14 @@ export default function App() {
       }
       if (!mod && key === 'w') {
         state.setTool('window');
+        return;
+      }
+      if (!mod && key === 'o') {
+        state.setTool('opening');
+        return;
+      }
+      if (!mod && key === 'm') {
+        state.setTool('measure');
         return;
       }
       if (!mod && key === 'r') {

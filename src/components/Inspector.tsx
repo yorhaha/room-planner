@@ -14,7 +14,7 @@ import {
 } from '../catalog';
 import { clamp, fmt, wallLength } from '../geometry';
 import { usePlanner } from '../store';
-import type { OpeningKind, Room, WallMode, WallSide } from '../types';
+import type { OpeningKind, Room, WallSide } from '../types';
 import {
   CopyIcon,
   DoorIcon,
@@ -174,12 +174,6 @@ const KIND_LABELS: Record<OpeningKind, string> = {
   opening: '垭口',
 };
 
-const WALL_MODES: Array<{ value: WallMode; label: string }> = [
-  { value: 'ghost', label: '半透明' },
-  { value: 'solid', label: '实心' },
-  { value: 'hidden', label: '隐藏' },
-];
-
 export default function Inspector() {
   const project = usePlanner((s) => s.project);
   const selection = usePlanner((s) => s.selection);
@@ -207,8 +201,6 @@ export default function Inspector() {
 
 function Overview() {
   const project = usePlanner((s) => s.project);
-  const wallMode = usePlanner((s) => s.wallMode);
-  const setWallMode = usePlanner((s) => s.setWallMode);
 
   const totalArea = project.rooms.reduce((sum, r) => sum + r.w * r.d, 0);
   const doorCount = project.openings.filter((o) => o.kind === 'door').length;
@@ -249,42 +241,6 @@ function Overview() {
             <span className="stat-label">门 / 窗</span>
           </div>
         </div>
-
-        <Section title="3D 墙体">
-          <div className="segmented full mini">
-            {WALL_MODES.map((m) => (
-              <button
-                key={m.value}
-                className={wallMode === m.value ? 'active' : ''}
-                onClick={() => setWallMode(m.value)}
-              >
-                {m.label}
-              </button>
-            ))}
-          </div>
-          <p className="hint">半透明模式便于观察室内家具布置。</p>
-        </Section>
-
-        <Section title="快速上手">
-          <ol className="tips-list">
-            <li>
-              <span className="tip-index">1</span>
-              添加房间，拖动边缘或角点调整尺寸。
-            </li>
-            <li>
-              <span className="tip-index">2</span>
-              把房间拖到相邻位置，松手后墙体自动吸附并合并。
-            </li>
-            <li>
-              <span className="tip-index">3</span>
-              点击「门 / 窗」后点墙体开洞，可继续拖动调整位置。
-            </li>
-            <li>
-              <span className="tip-index">4</span>
-              从家具库添加家具，拖动摆放，右侧可调尺寸、旋转与换色。
-            </li>
-          </ol>
-        </Section>
 
         <div className="inspector-footnote">所有修改都会自动保存在浏览器本地，也可以随时导出 JSON 备份。</div>
       </div>

@@ -1,4 +1,5 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { requestExport } from '../exportImage';
 import { usePlanner } from '../store';
 import {
   CubeIcon,
@@ -38,6 +39,8 @@ export default function TopBar() {
   const past = usePlanner((s) => s.past.length);
   const future = usePlanner((s) => s.future.length);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const exportRef = useRef<HTMLDivElement | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const setProjectName = usePlanner((s) => s.setProjectName);
   const setView = usePlanner((s) => s.setView);
@@ -48,6 +51,15 @@ export default function TopBar() {
   const importProject = usePlanner((s) => s.importProject);
   const setHelpOpen = usePlanner((s) => s.setHelpOpen);
   const notify = usePlanner((s) => s.notify);
+
+  useEffect(() => {
+    if (!exportOpen) return;
+    const close = (event: PointerEvent) => {
+      if (!exportRef.current?.contains(event.target as Node)) setExportOpen(false);
+    };
+    window.addEventListener('pointerdown', close);
+    return () => window.removeEventListener('pointerdown', close);
+  }, [exportOpen]);
 
   const handleExport = () => {
     const data = {
@@ -170,10 +182,52 @@ export default function TopBar() {
             <UploadIcon size={16} />
             <span>导入</span>
           </button>
-          <button className="text-btn" onClick={handleExport} title="导出 JSON 户型">
-            <DownloadIcon size={16} />
-            <span>导出</span>
-          </button>
+          <div className="export-wrap" ref={exportRef}>
+            <button
+              className={`text-btn${exportOpen ? ' active' : ''}`}
+              onClick={() => setExportOpen((open) => !open)}
+              title="导出户型"
+              aria-haspopup="menu"
+              aria-expanded={exportOpen}
+            >
+              <DownloadIcon size={16} />
+              <span>导出</span>
+            </button>
+            {exportOpen && (
+              <div className="export-menu" role="menu">
+                <button
+                  role="menuitem"
+                  onClick={() => {
+                    setExportOpen(false);
+                    requestExport('png');
+                  }}
+                >
+                  图片 PNG
+                  <span>当前视图</span>
+                </button>
+                <button
+                  role="menuitem"
+                  onClick={() => {
+                    setExportOpen(false);
+                    requestExport('pdf');
+                  }}
+                >
+                  PDF 文档
+                  <span>A4 排版</span>
+                </button>
+                <button
+                  role="menuitem"
+                  onClick={() => {
+                    setExportOpen(false);
+                    handleExport();
+                  }}
+                >
+                  JSON 备份
+                  <span>可重新导入</span>
+                </button>
+              </div>
+            )}
+          </div>
           <input
             ref={fileRef}
             type="file"

@@ -63,6 +63,42 @@ export function WindowIcon(p: IconProps) {
   );
 }
 
+export function OpeningIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M5 20.5V5.5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v15" />
+      <path d="M5 20.5h14M9 3.5v17M15 3.5v17" />
+    </Svg>
+  );
+}
+
+export function RulerIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="m4.2 15.6 11.4-11.4 3.6 3.6L7.8 19.2z" />
+      <path d="m8.2 11.6 1.8 1.8M11 8.8l1.8 1.8M13.8 6l1.8 1.8" />
+    </Svg>
+  );
+}
+
+export function DimIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M4 8v8M20 8v8M4 12h16" />
+      <path d="m7 9-3 3 3 3M17 9l3 3-3 3" />
+    </Svg>
+  );
+}
+
+export function AlertIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M12 4 2.8 20h18.4L12 4Z" />
+      <path d="M12 9.5v4.5M12 17.2h.01" />
+    </Svg>
+  );
+}
+
 export function PlusIcon(p: IconProps) {
   return <Svg {...p}><path d="M12 5v14M5 12h14" /></Svg>;
 }

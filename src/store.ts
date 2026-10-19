@@ -13,6 +13,7 @@ import {
   clampOpening,
   pointInRoom,
   roomOfPoint,
+  roomsOverlap,
   wallLength,
   uid,
 } from './geometry';
@@ -413,6 +414,12 @@ export const usePlanner = create<PlannerState>((set, get) => {
         merged.z = Math.round(merged.z * 1000) / 1000;
         merged.w = Math.round(merged.w * 1000) / 1000;
         merged.d = Math.round(merged.d * 1000) / 1000;
+        const others = p.rooms.filter((r) => r.id !== id);
+        const wasOverlapping = others.some((r) => roomsOverlap(p.rooms[idx], r));
+        if (!wasOverlapping && others.some((r) => roomsOverlap(merged, r))) {
+          if (!transient) notify('房间不能与其他房间重叠');
+          return;
+        }
         p.rooms[idx] = merged;
         for (let i = 0; i < p.openings.length; i += 1) {
           if (p.openings[i].roomId === id) {
@@ -426,8 +433,13 @@ export const usePlanner = create<PlannerState>((set, get) => {
       applyProject((p) => {
         const idx = p.rooms.findIndex((r) => r.id === id);
         if (idx < 0) return;
-        const dx = x - p.rooms[idx].x;
-        const dz = z - p.rooms[idx].z;
+        const current = p.rooms[idx];
+        const next = { ...current, x, z };
+        const others = p.rooms.filter((r) => r.id !== id);
+        const wasOverlapping = others.some((r) => roomsOverlap(current, r));
+        if (!wasOverlapping && others.some((r) => roomsOverlap(next, r))) return;
+        const dx = x - current.x;
+        const dz = z - current.z;
         p.rooms[idx].x = Math.round(x * 1000) / 1000;
         p.rooms[idx].z = Math.round(z * 1000) / 1000;
         for (const f of p.furniture) {

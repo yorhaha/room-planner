@@ -9,6 +9,7 @@ import {
   shade,
   withAlpha,
 } from '../catalog';
+import { listenForExport, exportPlanImage } from '../exportImage';
 import {
   buildWalls,
   clamp,
@@ -33,12 +34,16 @@ import type {
   WallSide,
 } from '../types';
 import {
+  AlertIcon,
   CursorIcon,
+  DimIcon,
   DoorIcon,
   FitIcon,
   MinusIcon,
+  OpeningIcon,
   PlusIcon,
   RoomIcon,
+  RulerIcon,
   SparklesIcon,
   WindowIcon,
 } from './icons';
@@ -64,6 +69,11 @@ type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 interface SnapGuides {
   v?: number;
   h?: number;
+}
+
+interface SnapTarget {
+  pos: number;
+  guide: number;
 }
 
 type Drag =
@@ -253,27 +263,191 @@ function snapFurniture(
   z: number,
   item: Furniture,
   rooms: Room[],
-): PlanPoint {
+  furniture: Furniture[],
+): PlanPoint & { guides: SnapGuides } {
   const { w, d } = getFurnitureSize(item);
   const { hx, hz } = furnitureHalfExtents(item, w, d);
-  let sx = roundTo(x, SNAP);
-  let sz = roundTo(z, SNAP);
+  const xTargets: SnapTarget[] = [];
+  const zTargets: SnapTarget[] = [];
   const room = roomOfPoint(rooms, x, z);
-  if (!room) return { x: sx, z: sz };
-  const inset = room.wallThickness / 2 + 0.02;
-  const targetsX = [
-    room.x + inset + hx,
-    room.x + room.w - inset - hx,
-  ];
-  const targetsZ = [
-    room.z + inset + hz,
-    room.z + room.d - inset - hz,
-  ];
-  const snapX = snapEdgeTo(x, targetsX);
-  const snapZ = snapEdgeTo(z, targetsZ);
-  if (snapX !== null) sx = snapX;
-  if (snapZ !== null) sz = snapZ;
-  return { x: Math.round(sx * 1000) / 1000, z: Math.round(sz * 1000) / 1000 };
+
+  if (room) {
+    const inset = room.wallThickness / 2 + 0.02;
+    const leftWall = room.x + inset;
+    const rightWall = room.x + room.w - inset;
+    const topWall = room.z + inset;
+    const bottomWall = room.z + room.d - inset;
+    xTargets.push({ pos: leftWall + hx, guide: leftWall });
+    xTargets.push({ pos: rightWall - hx, guide: rightWall });
+    xTargets.push({ pos: room.x + room.w / 2, guide: room.x + room.w / 2 });
+    zTargets.push({ pos: topWall + hz, guide: topWall });
+    zTargets.push({ pos: bottomWall - hz, guide: bottomWall });
+    zTargets.push({ pos: room.z + room.d / 2, guide: room.z + room.d / 2 });
+  }
+
+  for (const other of furniture) {
+    if (other.id === item.id) continue;
+    const otherSize = getFurnitureSize(other);
+    const otherExtents = furnitureHalfExtents(other, otherSize.w, otherSize.d);
+    xTargets.push(
+      { pos: other.x, guide: other.x },
+      { pos: other.x - otherExtents.hx + hx, guide: other.x - otherExtents.hx },
+      { pos: other.x + otherExtents.hx - hx, guide: other.x + otherExtents.hx },
+      { pos: other.x - otherExtents.hx - hx, guide: other.x - otherExtents.hx },
+      { pos: other.x + otherExtents.hx + hx, guide: other.x + otherExtents.hx },
+    );
+    zTargets.push(
+      { pos: other.z, guide: other.z },
+      { pos: other.z - otherExtents.hz + hz, guide: other.z - otherExtents.hz },
+      { pos: other.z + otherExtents.hz - hz, guide: other.z + otherExtents.hz },
+      { pos: other.z - otherExtents.hz - hz, guide: other.z - otherExtents.hz },
+      { pos: other.z + otherExtents.hz + hz, guide: other.z + otherExtents.hz },
+    );
+  }
+
+  const findTarget = (value: number, targets: SnapTarget[]): SnapTarget | null => {
+    let best: SnapTarget | null = null;
+    let bestDist = ALIGN_THRESHOLD;
+    for (const target of targets) {
+      const dist = Math.abs(target.pos - value);
+      if (dist <= bestDist) {
+        bestDist = dist;
+        best = target;
+      }
+    }
+    return best;
+  };
+
+  const snapX = findTarget(x, xTargets);
+  const snapZ = findTarget(z, zTargets);
+  const sx = snapX ? snapX.pos : roundTo(x, SNAP);
+  const sz = snapZ ? snapZ.pos : roundTo(z, SNAP);
+  return {
+    x: Math.round(sx * 1000) / 1000,
+    z: Math.round(sz * 1000) / 1000,
+    guides: { v: snapX?.guide, h: snapZ?.guide },
+  };
+}
+
+interface PlacementIssue {
+  overlap: boolean;
+  outside: boolean;
+}
+
+function computePlacementIssues(project: Project): Map<string, PlacementIssue> {
+  const issues = new Map<string, PlacementIssue>();
+  const ensure = (id: string) => {
+    let issue = issues.get(id);
+    if (!issue) {
+      issue = { overlap: false, outside: false };
+      issues.set(id, issue);
+    }
+    return issue;
+  };
+
+  const entries = project.furniture.map((item) => {
+    const { w, d } = getFurnitureSize(item);
+    const { hx, hz } = furnitureHalfExtents(item, w, d);
+    return { item, hx, hz };
+  });
+
+  for (const entry of entries) {
+    const room = roomOfPoint(project.rooms, entry.item.x, entry.item.z);
+    if (!room) {
+      ensure(entry.item.id).outside = true;
+      continue;
+    }
+    const inset = room.wallThickness / 2 + 0.02;
+    if (
+      entry.item.x - entry.hx < room.x + inset - 0.005 ||
+      entry.item.x + entry.hx > room.x + room.w - inset + 0.005 ||
+      entry.item.z - entry.hz < room.z + inset - 0.005 ||
+      entry.item.z + entry.hz > room.z + room.d - inset + 0.005
+    ) {
+      ensure(entry.item.id).outside = true;
+    }
+  }
+
+  for (let i = 0; i < entries.length; i += 1) {
+    for (let j = i + 1; j < entries.length; j += 1) {
+      const a = entries[i];
+      const b = entries[j];
+      if (a.item.type === 'rug' || b.item.type === 'rug') continue;
+      const overlapX = Math.abs(a.item.x - b.item.x) < a.hx + b.hx - 0.005;
+      const overlapZ = Math.abs(a.item.z - b.item.z) < a.hz + b.hz - 0.005;
+      if (!overlapX || !overlapZ) continue;
+      ensure(a.item.id).overlap = true;
+      ensure(b.item.id).overlap = true;
+    }
+  }
+
+  return issues;
+}
+
+/**
+ * 尺寸线优先放在房间外侧；如果那一侧紧邻其他房间，就换到对侧，
+ * 两侧都被相邻房间占满时才收进房间内部，避免尺寸线看起来属于隔壁房间。
+ */
+function dimensionLines(room: Room, rooms: Room[]): { widthZ: number; depthX: number } {
+  const gap = 0.42;
+  const sharesX = (other: Room) =>
+    room.x < other.x + other.w - 0.001 && room.x + room.w > other.x + 0.001;
+  const sharesZ = (other: Room) =>
+    room.z < other.z + other.d - 0.001 && room.z + room.d > other.z + 0.001;
+  const others = rooms.filter((other) => other.id !== room.id);
+  const topBlocked = others.some(
+    (other) => sharesX(other) && Math.abs(other.z + other.d - room.z) < 0.01,
+  );
+  const bottomBlocked = others.some(
+    (other) => sharesX(other) && Math.abs(other.z - (room.z + room.d)) < 0.01,
+  );
+  const leftBlocked = others.some(
+    (other) => sharesZ(other) && Math.abs(other.x + other.w - room.x) < 0.01,
+  );
+  const rightBlocked = others.some(
+    (other) => sharesZ(other) && Math.abs(other.x - (room.x + room.w)) < 0.01,
+  );
+
+  const widthZ = !topBlocked
+    ? room.z - gap
+    : !bottomBlocked
+      ? room.z + room.d + gap
+      : room.z + room.d - 0.3;
+  const depthX = !leftBlocked
+    ? room.x - gap
+    : !rightBlocked
+      ? room.x + room.w + gap
+      : room.x + room.w - 0.3;
+
+  return { widthZ, depthX };
+}
+
+function snapMeasurePoint(point: PlanPoint, rooms: Room[]): PlanPoint {
+  let best = point;
+  let bestDist = 0.18;
+  for (const room of rooms) {
+    const candidates = [
+      { x: room.x, z: room.z },
+      { x: room.x + room.w / 2, z: room.z },
+      { x: room.x + room.w, z: room.z },
+      { x: room.x + room.w, z: room.z + room.d / 2 },
+      { x: room.x + room.w, z: room.z + room.d },
+      { x: room.x + room.w / 2, z: room.z + room.d },
+      { x: room.x, z: room.z + room.d },
+      { x: room.x, z: room.z + room.d / 2 },
+    ];
+    for (const candidate of candidates) {
+      const distance = Math.hypot(candidate.x - point.x, candidate.z - point.z);
+      if (distance < bestDist) {
+        bestDist = distance;
+        best = candidate;
+      }
+    }
+  }
+  return {
+    x: Math.round(best.x * 100) / 100,
+    z: Math.round(best.z * 100) / 100,
+  };
 }
 
 /** 把平面坐标转换到家具自身坐标系（原点为家具中心，未旋转） */
@@ -318,6 +492,7 @@ export default function PlanEditor() {
   const setTool = usePlanner((s) => s.setTool);
   const select = usePlanner((s) => s.select);
   const loadSample = usePlanner((s) => s.loadSample);
+  const notify = usePlanner((s) => s.notify);
 
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -331,6 +506,10 @@ export default function PlanEditor() {
   const [hover, setHover] = useState<WallHover | null>(null);
   const hoverRef = useRef<WallHover | null>(null);
   hoverRef.current = hover;
+  const [showDims, setShowDims] = useState(true);
+  const [measureStart, setMeasureStart] = useState<PlanPoint | null>(null);
+  const [measureEnd, setMeasureEnd] = useState<PlanPoint | null>(null);
+  const [measureCursor, setMeasureCursor] = useState<PlanPoint | null>(null);
 
   const roomMap = useMemo(() => new Map(project.rooms.map((r) => [r.id, r])), [project.rooms]);
   const walls = useMemo(() => buildWalls(project), [project]);
@@ -353,6 +532,35 @@ export default function PlanEditor() {
       return ar - br;
     });
   }, [project.furniture]);
+
+  const placementIssues = useMemo(() => computePlacementIssues(project), [project]);
+  const issueCount = placementIssues.size;
+  const issueSummary = useMemo(() => {
+    let overlap = 0;
+    let outside = 0;
+    for (const issue of placementIssues.values()) {
+      if (issue.overlap) overlap += 1;
+      if (issue.outside) outside += 1;
+    }
+    return { overlap, outside };
+  }, [placementIssues]);
+
+  useEffect(() => {
+    return listenForExport((format) => {
+      const svg = svgRef.current;
+      if (!svg) return;
+      void exportPlanImage(svg, project, format)
+        .then(() => notify(format === 'png' ? 'PNG 图片已导出' : 'PDF 文档已导出'))
+        .catch(() => notify('导出失败，请稍后重试'));
+    });
+  }, [project, notify]);
+
+  useEffect(() => {
+    if (tool === 'measure') return;
+    setMeasureStart(null);
+    setMeasureEnd(null);
+    setMeasureCursor(null);
+  }, [tool]);
 
   const toPlan = useCallback((clientX: number, clientY: number): PlanPoint => {
     const svg = svgRef.current;
@@ -501,7 +709,14 @@ export default function PlanEditor() {
         ensureCheckpoint(drag);
         const item = state.project.furniture.find((f) => f.id === drag.id);
         if (!item) return;
-        const snapped = snapFurniture(drag.origX + dx, drag.origZ + dz, item, state.project.rooms);
+        const snapped = snapFurniture(
+          drag.origX + dx,
+          drag.origZ + dz,
+          item,
+          state.project.rooms,
+          state.project.furniture,
+        );
+        setGuides(snapped.guides);
         state.updateFurniture(drag.id, { x: snapped.x, z: snapped.z }, true);
         return;
       }
@@ -590,6 +805,8 @@ export default function PlanEditor() {
     document.body.classList.add('is-grabbing');
   };
 
+  const openingWidth = tool === 'door' ? 0.9 : tool === 'window' ? 1.4 : 1.2;
+
   const handleSvgPointerDown = (e: ReactPointerEvent<SVGSVGElement>) => {
     if (isPanGesture(e)) {
       e.preventDefault();
@@ -598,9 +815,22 @@ export default function PlanEditor() {
     }
     if (e.button !== 0) return;
 
-    if (tool === 'door' || tool === 'window') {
+    if (tool === 'measure') {
+      const point = snapMeasurePoint(toPlan(e.clientX, e.clientY), project.rooms);
+      if (measureStart && !measureEnd) {
+        setMeasureEnd(point);
+        setMeasureCursor(null);
+      } else {
+        setMeasureStart(point);
+        setMeasureEnd(null);
+        setMeasureCursor(null);
+      }
+      return;
+    }
+
+    if (tool === 'door' || tool === 'window' || tool === 'opening') {
       const p = toPlan(e.clientX, e.clientY);
-      const width = tool === 'door' ? 0.9 : 1.4;
+      const width = openingWidth;
       const h = findWallAt(project, p.x, p.z, width);
       if (!h) return;
       const state = usePlanner.getState();
@@ -624,13 +854,19 @@ export default function PlanEditor() {
 
   const handleSvgPointerMove = (e: ReactPointerEvent<SVGSVGElement>) => {
     if (dragRef.current) return;
-    if (tool !== 'door' && tool !== 'window') {
+    if (tool === 'measure') {
+      if (measureStart && !measureEnd) {
+        setMeasureCursor(snapMeasurePoint(toPlan(e.clientX, e.clientY), project.rooms));
+      }
+      if (hoverRef.current) setHover(null);
+      return;
+    }
+    if (tool !== 'door' && tool !== 'window' && tool !== 'opening') {
       if (hoverRef.current) setHover(null);
       return;
     }
     const p = toPlan(e.clientX, e.clientY);
-    const width = tool === 'door' ? 0.9 : 1.4;
-    const next = findWallAt(project, p.x, p.z, width);
+    const next = findWallAt(project, p.x, p.z, openingWidth);
     setHover(next);
   };
 
@@ -763,7 +999,7 @@ export default function PlanEditor() {
     : [];
 
   const ghost = useMemo(() => {
-    if (!hover || (tool !== 'door' && tool !== 'window')) return null;
+    if (!hover || (tool !== 'door' && tool !== 'window' && tool !== 'opening')) return null;
     const room = roomMap.get(hover.roomId);
     if (!room) return null;
     const start = wallPoint(room, hover.side, hover.offset - hover.width / 2);
@@ -782,7 +1018,15 @@ export default function PlanEditor() {
       ? '点击墙体放置门，拖动门扇可沿墙移动 · Esc 退出'
       : tool === 'window'
         ? '点击墙体放置窗，拖动窗户可沿墙移动 · Esc 退出'
-        : null;
+        : tool === 'opening'
+          ? '点击墙体放置垭口，可在检查器中调整尺寸 · Esc 退出'
+          : tool === 'measure'
+            ? '点击起点，再点击终点测量距离 · Esc 退出'
+            : null;
+
+  const measurePreview = measureStart
+    ? { start: measureStart, end: measureEnd ?? measureCursor ?? measureStart }
+    : null;
 
   return (
     <div className={`plan-wrap${spaceActive ? ' space-pan' : ''}`} ref={wrapRef}>
@@ -803,9 +1047,9 @@ export default function PlanEditor() {
           </pattern>
         </defs>
 
-        <g transform={`translate(${view.x} ${view.y}) scale(${view.scale})`}>
-          <rect x={-300} y={-300} width={800} height={700} fill="#f7f4ee" />
-          <rect x={-300} y={-300} width={800} height={700} fill="url(#grid-major)" />
+        <g className="plan-world" transform={`translate(${view.x} ${view.y}) scale(${view.scale})`}>
+          <rect className="plan-export-bg" x={-300} y={-300} width={800} height={700} fill="#f7f4ee" />
+          <rect className="plan-export-grid" x={-300} y={-300} width={800} height={700} fill="url(#grid-major)" />
 
           {project.rooms.map((room) => (
             <g key={room.id}>
@@ -821,6 +1065,7 @@ export default function PlanEditor() {
               />
               {selectedRoom?.id === room.id && (
                 <rect
+                  data-export-hide="true"
                   x={room.x}
                   y={room.z}
                   width={room.w}
@@ -851,7 +1096,7 @@ export default function PlanEditor() {
                   room={room}
                   opening={opening}
                   selected={selectedOpening?.id === opening.id}
-                  interactive
+                  interactive={tool === 'select'}
                   onPointerDown={handleOpeningPointerDown}
                 />
               );
@@ -908,21 +1153,24 @@ export default function PlanEditor() {
                         strokeLinecap="round"
                       />
                     )}
-                    <text
-                      x={0}
-                      y={item.type === 'rug' ? 0 : 0.055}
-                      textAnchor="middle"
-                      fontSize={fontSize}
-                      fill={item.type === 'rug' ? '#8b7969' : '#4d4a42'}
-                      fontWeight={500}
-                      pointerEvents="none"
-                    >
-                      {def.name}
-                    </text>
+                    {item.type !== 'rug' && (
+                      <text
+                        x={0}
+                        y={0.055}
+                        textAnchor="middle"
+                        fontSize={fontSize}
+                        fill="#4d4a42"
+                        fontWeight={500}
+                        pointerEvents="none"
+                        transform={item.rotation ? `rotate(${-item.rotation})` : undefined}
+                      >
+                        {def.name}
+                      </text>
+                    )}
                   </g>
 
                   {isSelected && tool === 'select' && (
-                    <>
+                    <g data-export-hide="true">
                       <rect
                         x={-w / 2 - 0.07}
                         y={-d / 2 - 0.07}
@@ -994,12 +1242,36 @@ export default function PlanEditor() {
                           />
                         </g>
                       ))}
-                    </>
+                    </g>
                   )}
                 </g>
               );
             })}
           </g>
+
+          {issueCount > 0 && (
+            <g data-export-hide="true" pointerEvents="none">
+              {orderedFurniture.map((item) => {
+                if (!placementIssues.has(item.id)) return null;
+                const { w, d } = getFurnitureSize(item);
+                const { hx, hz } = furnitureHalfExtents(item, w, d);
+                return (
+                  <rect
+                    key={item.id}
+                    x={item.x - hx - 0.075}
+                    y={item.z - hz - 0.075}
+                    width={hx * 2 + 0.15}
+                    height={hz * 2 + 0.15}
+                    rx={0.06}
+                    fill="none"
+                    stroke="#c2553b"
+                    strokeWidth={0.035}
+                    strokeDasharray="0.16 0.1"
+                  />
+                );
+              })}
+            </g>
+          )}
 
           <g className="room-labels">
             {project.rooms.map((room) => (
@@ -1012,29 +1284,84 @@ export default function PlanEditor() {
             ))}
           </g>
 
-          {selectedRoom && (
-            <g className="room-dims" pointerEvents="none">
-              <DimLine
-                x1={selectedRoom.x}
-                z1={selectedRoom.z - 0.42}
-                x2={selectedRoom.x + selectedRoom.w}
-                z2={selectedRoom.z - 0.42}
-                label={`${fmt(selectedRoom.w)} m`}
-                vertical={false}
+          <g className="room-dims" pointerEvents="none">
+            {project.rooms.map((room) => {
+              const selected = selectedRoom?.id === room.id;
+              if (!showDims && !selected) return null;
+              const { widthZ, depthX } = dimensionLines(room, project.rooms);
+              return (
+                <g key={room.id} opacity={showDims && !selected ? 0.78 : 1}>
+                  <DimLine
+                    x1={room.x}
+                    z1={widthZ}
+                    x2={room.x + room.w}
+                    z2={widthZ}
+                    label={`${fmt(room.w)} m`}
+                    vertical={false}
+                  />
+                  <DimLine
+                    x1={depthX}
+                    z1={room.z}
+                    x2={depthX}
+                    z2={room.z + room.d}
+                    label={`${fmt(room.d)} m`}
+                    vertical
+                  />
+                </g>
+              );
+            })}
+          </g>
+
+          {measurePreview && (
+            <g className="measure-tool" data-export-hide="true" pointerEvents="none">
+              <line
+                x1={measurePreview.start.x}
+                y1={measurePreview.start.z}
+                x2={measurePreview.end.x}
+                y2={measurePreview.end.z}
+                stroke="#b2653f"
+                strokeWidth={0.022}
+                strokeDasharray="0.12 0.08"
               />
-              <DimLine
-                x1={selectedRoom.x - 0.42}
-                z1={selectedRoom.z}
-                x2={selectedRoom.x - 0.42}
-                z2={selectedRoom.z + selectedRoom.d}
-                label={`${fmt(selectedRoom.d)} m`}
-                vertical
+              <circle
+                cx={measurePreview.start.x}
+                cy={measurePreview.start.z}
+                r={0.055}
+                fill="#fffaf4"
+                stroke="#b2653f"
+                strokeWidth={0.018}
               />
+              <circle
+                cx={measurePreview.end.x}
+                cy={measurePreview.end.z}
+                r={0.055}
+                fill="#fffaf4"
+                stroke="#b2653f"
+                strokeWidth={0.018}
+              />
+              <text
+                x={(measurePreview.start.x + measurePreview.end.x) / 2}
+                y={(measurePreview.start.z + measurePreview.end.z) / 2 - 0.16}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize={0.15}
+                fontWeight={600}
+                fill="#a35a3b"
+                stroke="#f7f3ec"
+                strokeWidth={0.05}
+                paintOrder="stroke"
+              >
+                {fmt(Math.hypot(
+                  measurePreview.end.x - measurePreview.start.x,
+                  measurePreview.end.z - measurePreview.start.z,
+                ))} m
+              </text>
             </g>
           )}
 
           {guides.v !== undefined && (
             <line
+              data-export-hide="true"
               x1={guides.v}
               y1={bounds.minZ - 2}
               x2={guides.v}
@@ -1048,6 +1375,7 @@ export default function PlanEditor() {
           )}
           {guides.h !== undefined && (
             <line
+              data-export-hide="true"
               x1={bounds.minX - 2}
               y1={guides.h}
               x2={bounds.maxX + 2}
@@ -1061,7 +1389,7 @@ export default function PlanEditor() {
           )}
 
           {ghost && (
-            <g pointerEvents="none">
+            <g data-export-hide="true" pointerEvents="none">
               <line
                 x1={ghost.start.x}
                 y1={ghost.start.z}
@@ -1086,7 +1414,7 @@ export default function PlanEditor() {
           )}
 
           {selectedRoom && tool === 'select' && (
-            <g className="resize-handles">
+            <g className="resize-handles" data-export-hide="true">
               {handles.map((h) => (
                 <g key={h.key}>
                   <rect
@@ -1136,10 +1464,35 @@ export default function PlanEditor() {
         <button
           className={`tool-btn${tool === 'window' ? ' active' : ''}`}
           onClick={() => setTool('window')}
-          title="添加窗"
+          title="添加窗 (W)"
         >
           <WindowIcon />
           <span>窗</span>
+        </button>
+        <button
+          className={`tool-btn${tool === 'opening' ? ' active' : ''}`}
+          onClick={() => setTool('opening')}
+          title="添加垭口 / 门洞 (O)"
+        >
+          <OpeningIcon />
+          <span>垭口</span>
+        </button>
+        <div className="toolbar-sep" />
+        <button
+          className={`tool-btn${tool === 'measure' ? ' active' : ''}`}
+          onClick={() => setTool('measure')}
+          title="测量距离 (M)"
+        >
+          <RulerIcon />
+          <span>测量</span>
+        </button>
+        <button
+          className={`tool-btn${showDims ? ' active' : ''}`}
+          onClick={() => setShowDims((shown) => !shown)}
+          title="显示 / 隐藏所有房间尺寸"
+        >
+          <DimIcon />
+          <span>尺寸</span>
         </button>
         <div className="toolbar-sep" />
         <button className="tool-btn" onClick={openRoomPicker} title="添加房间">
@@ -1149,6 +1502,20 @@ export default function PlanEditor() {
       </div>
 
       {toolHint && <div className="tool-hint glass">{toolHint}</div>}
+
+      {issueCount > 0 && (
+        <div
+          className="plan-warnings glass"
+          title="红色虚线框标出了重叠或超出房间的家具"
+        >
+          <AlertIcon size={14} />
+          <span>
+            {issueCount} 件家具
+            {issueSummary.overlap > 0 ? ` · ${issueSummary.overlap} 件重叠` : ''}
+            {issueSummary.outside > 0 ? ` · ${issueSummary.outside} 件越界` : ''}
+          </span>
+        </div>
+      )}
 
       <div className="zoom-controls glass">
         <button onClick={() => zoomBy(1.22)} title="放大">
@@ -1260,6 +1627,7 @@ function Opening2D({
     <g>
       {selected && (
         <line
+          data-export-hide="true"
           x1={start.x}
           y1={start.z}
           x2={end.x}
@@ -1399,6 +1767,7 @@ function Opening2D({
 
       {selected && (
         <text
+          data-export-hide="true"
           x={labelPoint.x}
           y={labelPoint.z}
           textAnchor="middle"

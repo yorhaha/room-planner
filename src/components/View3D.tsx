@@ -3,6 +3,7 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MutableRefObject } from 'react';
 import * as THREE from 'three';
+import { exportThreeCanvas, listenForExport } from '../exportImage';
 import { buildWalls, projectBounds } from '../geometry';
 import { usePlanner } from '../store';
 import type { Project, Room, WallMode } from '../types';
@@ -207,15 +208,30 @@ export default function View3D() {
   const setWallMode = usePlanner((s) => s.setWallMode);
   const setView = usePlanner((s) => s.setView);
   const epoch = usePlanner((s) => s.epoch);
+  const notify = usePlanner((s) => s.notify);
   const controlsRef = useRef<any>(null);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [resetSignal, setResetSignal] = useState(0);
+
+  useEffect(() => {
+    return listenForExport((format) => {
+      const canvas = wrapperRef.current?.querySelector('canvas');
+      if (!canvas) {
+        notify('3D 场景还没有准备好');
+        return;
+      }
+      void exportThreeCanvas(canvas, project, format)
+        .then(() => notify(format === 'png' ? 'PNG 图片已导出' : 'PDF 文档已导出'))
+        .catch(() => notify('导出失败，请稍后重试'));
+    });
+  }, [project, notify]);
 
   const initialView = useMemo(() => computeView(usePlanner.getState().project), []);
   const extent = useMemo(() => computeView(project).extent, [project]);
   const getView = useCallback(() => computeView(usePlanner.getState().project), []);
 
   return (
-    <div className="view3d">
+    <div className="view3d" ref={wrapperRef}>
       <Canvas
         shadows
         dpr={[1, 2]}
@@ -225,7 +241,7 @@ export default function View3D() {
           near: 0.1,
           far: 200,
         }}
-        gl={{ antialias: true }}
+        gl={{ antialias: true, preserveDrawingBuffer: true }}
         onPointerMissed={() => usePlanner.getState().select(null)}
       >
         <Scene project={project} />

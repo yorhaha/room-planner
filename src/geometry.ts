@@ -92,6 +92,19 @@ export function pointInRoom(room: Room, x: number, z: number, margin = 0): boole
   );
 }
 
+/** 两个房间是否真正重叠（仅共边不算） */
+export function roomsOverlap(
+  a: Pick<Room, 'x' | 'z' | 'w' | 'd'>,
+  b: Pick<Room, 'x' | 'z' | 'w' | 'd'>,
+): boolean {
+  return (
+    a.x < b.x + b.w - 0.001 &&
+    a.x + a.w > b.x + 0.001 &&
+    a.z < b.z + b.d - 0.001 &&
+    a.z + a.d > b.z + 0.001
+  );
+}
+
 export function roomOfPoint(rooms: Room[], x: number, z: number): Room | null {
   for (let i = rooms.length - 1; i >= 0; i -= 1) {
     if (pointInRoom(rooms[i], x, z)) return rooms[i];

@@ -1,7 +1,7 @@
 export type WallSide = 'n' | 'e' | 's' | 'w';
 export type OpeningKind = 'door' | 'window' | 'opening';
 export type DoorType = 'swing' | 'sliding';
-export type ToolMode = 'select' | 'door' | 'window';
+export type ToolMode = 'select' | 'door' | 'window' | 'opening' | 'measure';
 export type ViewMode = '2d' | '3d';
 export type WallMode = 'ghost' | 'solid' | 'hidden';
 
