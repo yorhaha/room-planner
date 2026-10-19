@@ -1,10 +1,10 @@
 import { RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
+import { DEFAULT_DOOR_COLOR } from '../catalog';
 import { openingTransform } from '../geometry';
 import { usePlanner } from '../store';
 import type { Opening, Project, Room } from '../types';
 
-const FRAME_WOOD = '#9a7550';
 const FRAME_LIGHT = '#efeae0';
 const METAL = '#b6b2a8';
 
@@ -14,12 +14,14 @@ function DoorLeaf({
   inwardLocal,
   swing,
   hinge,
+  color,
 }: {
   width: number;
   height: number;
   inwardLocal: 1 | -1;
   swing: 'in' | 'out';
   hinge: 'start' | 'end';
+  color: string;
 }) {
   const hingeSign = hinge === 'end' ? -1 : 1;
   const swingSign = swing === 'out' ? -1 : 1;
@@ -38,7 +40,7 @@ function DoorLeaf({
         castShadow
         receiveShadow
       >
-        <meshStandardMaterial color={FRAME_WOOD} roughness={0.65} metalness={0.05} />
+        <meshStandardMaterial color={color} roughness={0.65} metalness={0.05} />
       </RoundedBox>
       <mesh position={[width - 0.23, height * 0.47, 0.045]} castShadow>
         <sphereGeometry args={[0.025, 16, 12]} />
@@ -57,11 +59,13 @@ function SlidingLeaves({
   height,
   inwardLocal,
   double,
+  color,
 }: {
   width: number;
   height: number;
   inwardLocal: 1 | -1;
   double: boolean;
+  color: string;
 }) {
   const panelH = height - 0.06;
   const panelW = double ? width / 2 + 0.06 : width - 0.01;
@@ -85,7 +89,7 @@ function SlidingLeaves({
             castShadow
             receiveShadow
           >
-            <meshStandardMaterial color={FRAME_WOOD} roughness={0.65} metalness={0.05} />
+            <meshStandardMaterial color={color} roughness={0.65} metalness={0.05} />
           </RoundedBox>
           {[-1, 1].map((face) => (
             <mesh
@@ -113,7 +117,8 @@ function OpeningMesh({ room, opening }: { room: Room; opening: Opening }) {
   const height = opening.height;
   const width = opening.width;
   const baseY = isWindow ? opening.sill : 0;
-  const frameColor = isWindow ? FRAME_LIGHT : FRAME_WOOD;
+  const doorColor = opening.color ?? DEFAULT_DOOR_COLOR;
+  const frameColor = isWindow ? FRAME_LIGHT : doorColor;
   const clearW = Math.max(0.12, width - frameT * 2);
 
   return (
@@ -197,6 +202,7 @@ function OpeningMesh({ room, opening }: { room: Room; opening: Opening }) {
                 height={height}
                 inwardLocal={inwardLocal}
                 double={width >= 1.3}
+                color={doorColor}
               />
             </>
           ) : (
@@ -211,6 +217,7 @@ function OpeningMesh({ room, opening }: { room: Room; opening: Opening }) {
                 inwardLocal={inwardLocal}
                 swing={opening.swing ?? 'in'}
                 hinge={opening.hinge ?? 'start'}
+                color={doorColor}
               />
             </>
           )}

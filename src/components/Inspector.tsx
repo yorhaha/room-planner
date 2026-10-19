@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import {
+  DEFAULT_DOOR_COLOR,
+  DOOR_COLORS,
   FLOOR_COLORS,
   FURNITURE_COLORS,
   FURNITURE_SIZE_MAX,
@@ -428,6 +430,7 @@ function OpeningInspector({ opening, room }: { opening: import('../types').Openi
   const isSliding = isDoor && doorType === 'sliding';
   const swing = opening.swing ?? 'in';
   const hinge = opening.hinge ?? 'start';
+  const doorColor = opening.color ?? DEFAULT_DOOR_COLOR;
   const hingeOptions =
     opening.side === 'n' || opening.side === 's'
       ? [
@@ -564,6 +567,20 @@ function OpeningInspector({ opening, room }: { opening: import('../types').Openi
             <p className="hint">
               内开指向所属房间内打开；铰链方位按平面图的东南西北方向标注，可在平面图中直接查看门弧。
             </p>
+          </Section>
+        )}
+
+        {isDoor && (
+          <Section title="门颜色">
+            <SwatchRow
+              label="门扇 / 门框"
+              colors={DOOR_COLORS}
+              value={doorColor}
+              onChange={(color) => {
+                if (color !== doorColor) updateOpening(opening.id, { color });
+              }}
+            />
+            <p className="hint">颜色同时应用到平面图与 3D 预览，门把手保持金属色。</p>
           </Section>
         )}
 

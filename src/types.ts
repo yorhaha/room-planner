@@ -39,6 +39,8 @@ export interface Opening {
   swing?: 'in' | 'out';
   /** 门铰链位于墙的起点侧或终点侧 */
   hinge?: 'start' | 'end';
+  /** 门的颜色（门扇与门框），缺省使用原木色；仅对 door 有效 */
+  color?: string;
 }
 
 export type FurnitureType =

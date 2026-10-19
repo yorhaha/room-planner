@@ -88,6 +88,19 @@ export const FURNITURE_COLORS = [
   '#9a8f82',
 ];
 
+export const DOOR_COLORS = [
+  '#9a7550',
+  '#c8a87c',
+  '#6f4e37',
+  '#efece6',
+  '#cfcbc2',
+  '#8b8f90',
+  '#42474b',
+  '#78876f',
+];
+
+export const DEFAULT_DOOR_COLOR = DOOR_COLORS[0];
+
 export function getDef(type: FurnitureType): FurnitureDef {
   return FURNITURE[type];
 }

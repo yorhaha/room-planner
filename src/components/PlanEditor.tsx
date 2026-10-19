@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import {
+  DEFAULT_DOOR_COLOR,
   FURNITURE_SIZE_MAX,
   FURNITURE_SIZE_MIN,
   getDef,
@@ -1237,6 +1238,7 @@ function Opening2D({
   const dir = sideDir(opening.side);
   const t = Math.max(room.wallThickness, 0.1);
   const isSliding = opening.kind === 'door' && opening.doorType === 'sliding';
+  const doorColor = opening.color ?? DEFAULT_DOOR_COLOR;
   const trackOffset = t * 0.5 + 0.06;
   const swing = opening.swing ?? 'in';
   const hingeSign = (opening.hinge ?? 'start') === 'start' ? 1 : -1;
@@ -1323,6 +1325,7 @@ function Opening2D({
                     to={0.03}
                     offset={trackOffset}
                     handle="end"
+                    color={doorColor}
                   />
                   <SlidingPanel
                     center={center}
@@ -1332,6 +1335,7 @@ function Opening2D({
                     to={opening.width / 2}
                     offset={-trackOffset}
                     handle="start"
+                    color={doorColor}
                   />
                 </>
               ) : (
@@ -1343,6 +1347,7 @@ function Opening2D({
                   to={opening.width / 2}
                   offset={trackOffset}
                   handle="end"
+                  color={doorColor}
                 />
               )}
             </>
@@ -1353,8 +1358,17 @@ function Opening2D({
                 y1={hinge.z}
                 x2={tip.x}
                 y2={tip.z}
-                stroke="#8d6644"
-                strokeWidth={0.045}
+                stroke={shade(doorColor, -0.32)}
+                strokeWidth={0.057}
+                strokeLinecap="round"
+              />
+              <line
+                x1={hinge.x}
+                y1={hinge.z}
+                x2={tip.x}
+                y2={tip.z}
+                stroke={doorColor}
+                strokeWidth={0.043}
                 strokeLinecap="round"
               />
               <path
@@ -1364,7 +1378,7 @@ function Opening2D({
                 strokeWidth={0.018}
                 strokeDasharray="0.08 0.06"
               />
-              <circle cx={hinge.x} cy={hinge.z} r={0.035} fill="#8d6644" />
+              <circle cx={hinge.x} cy={hinge.z} r={0.035} fill={shade(doorColor, -0.3)} />
             </>
           )}
         </g>
@@ -1428,6 +1442,7 @@ function SlidingPanel({
   to,
   offset,
   handle,
+  color,
 }: {
   center: { x: number; z: number };
   dir: { dx: number; dz: number };
@@ -1436,6 +1451,7 @@ function SlidingPanel({
   to: number;
   offset: number;
   handle: 'start' | 'end';
+  color: string;
 }) {
   const at = (t: number) => ({
     x: center.x + dir.dx * t + inward.nx * offset,
@@ -1451,11 +1467,20 @@ function SlidingPanel({
         y1={a.z}
         x2={b.x}
         y2={b.z}
-        stroke="#8d6644"
-        strokeWidth={0.055}
+        stroke={shade(color, -0.32)}
+        strokeWidth={0.067}
         strokeLinecap="butt"
       />
-      <circle cx={h.x} cy={h.z} r={0.028} fill="#7a5a3d" />
+      <line
+        x1={a.x}
+        y1={a.z}
+        x2={b.x}
+        y2={b.z}
+        stroke={color}
+        strokeWidth={0.051}
+        strokeLinecap="butt"
+      />
+      <circle cx={h.x} cy={h.z} r={0.028} fill={shade(color, -0.3)} />
     </g>
   );
 }

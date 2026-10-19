@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import {
+  DEFAULT_DOOR_COLOR,
   FURNITURE,
   FURNITURE_SIZE_MAX,
   FURNITURE_SIZE_MIN,
@@ -105,6 +106,7 @@ function normalizeProject(input: unknown): Project | null {
               doorType: raw.doorType === 'sliding' ? ('sliding' as const) : ('swing' as const),
               swing: raw.swing === 'out' ? ('out' as const) : ('in' as const),
               hinge: raw.hinge === 'end' ? ('end' as const) : ('start' as const),
+              color: asColor(raw.color, DEFAULT_DOOR_COLOR),
             }
           : {}),
       };
@@ -469,7 +471,12 @@ export const usePlanner = create<PlannerState>((set, get) => {
         sill,
         kind,
         ...(kind === 'door'
-          ? { doorType: 'swing' as const, swing: 'in' as const, hinge: 'start' as const }
+          ? {
+              doorType: 'swing' as const,
+              swing: 'in' as const,
+              hinge: 'start' as const,
+              color: DEFAULT_DOOR_COLOR,
+            }
           : {}),
       };
       const opening = clampOpening(room, base);
