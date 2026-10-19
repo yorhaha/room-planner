@@ -102,6 +102,7 @@ function normalizeProject(input: unknown): Project | null {
         kind,
         ...(kind === 'door'
           ? {
+              doorType: raw.doorType === 'sliding' ? ('sliding' as const) : ('swing' as const),
               swing: raw.swing === 'out' ? ('out' as const) : ('in' as const),
               hinge: raw.hinge === 'end' ? ('end' as const) : ('start' as const),
             }
@@ -468,7 +469,7 @@ export const usePlanner = create<PlannerState>((set, get) => {
         sill,
         kind,
         ...(kind === 'door'
-          ? { swing: 'in' as const, hinge: 'start' as const }
+          ? { doorType: 'swing' as const, swing: 'in' as const, hinge: 'start' as const }
           : {}),
       };
       const opening = clampOpening(room, base);

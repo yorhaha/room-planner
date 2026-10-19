@@ -70,6 +70,7 @@ export function makeSampleProject(): Project {
         height: 2.1,
         sill: 0,
         kind: 'door',
+        doorType: 'sliding',
       },
       {
         id: 'op_living_window_n',

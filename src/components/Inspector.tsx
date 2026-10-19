@@ -424,6 +424,8 @@ function OpeningInspector({ opening, room }: { opening: import('../types').Openi
   const maxWidth = Math.max(0.3, len - 0.1);
   const maxHeight = room.height;
   const isDoor = opening.kind === 'door';
+  const doorType = opening.doorType ?? 'swing';
+  const isSliding = isDoor && doorType === 'sliding';
   const swing = opening.swing ?? 'in';
   const hinge = opening.hinge ?? 'start';
   const hingeOptions =
@@ -448,7 +450,13 @@ function OpeningInspector({ opening, room }: { opening: import('../types').Openi
           <div className="inspector-head-text">
             <div className="inspector-overline">{KIND_LABELS[opening.kind]}</div>
             <h2 className="inspector-title">
-              {opening.kind === 'window' ? '窗户' : opening.kind === 'door' ? '门' : '垭口'}
+              {opening.kind === 'window'
+                ? '窗户'
+                : opening.kind === 'door'
+                  ? isSliding
+                    ? '推拉门'
+                    : '平开门'
+                  : '垭口'}
             </h2>
           </div>
           <span className="kind-chip">{room.name}</span>
@@ -479,6 +487,32 @@ function OpeningInspector({ opening, room }: { opening: import('../types').Openi
         </Section>
 
         {isDoor && (
+          <Section title="门类型">
+            <div className="segmented full">
+              <button
+                className={!isSliding ? 'active' : ''}
+                onClick={() => {
+                  if (isSliding) updateOpening(opening.id, { doorType: 'swing' });
+                }}
+              >
+                平开门
+              </button>
+              <button
+                className={isSliding ? 'active' : ''}
+                onClick={() => {
+                  if (!isSliding) updateOpening(opening.id, { doorType: 'sliding' });
+                }}
+              >
+                推拉门
+              </button>
+            </div>
+            <p className="hint">
+              平开门绕铰链旋转开启，可设置开向与铰链位置；推拉门沿墙体平行滑动，不占用开门弧线空间。
+            </p>
+          </Section>
+        )}
+
+        {isDoor && !isSliding && (
           <Section title="开启方式">
             <div>
               <div className="range-head">

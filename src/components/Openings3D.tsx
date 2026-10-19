@@ -52,10 +52,52 @@ function DoorLeaf({
   );
 }
 
+function SlidingLeaves({ width, height }: { width: number; height: number }) {
+  const panelH = height - 0.06;
+  const double = width >= 1.3;
+  const panelW = double ? width / 2 + 0.05 : width - 0.05;
+  const leaves = double
+    ? [
+        { x: -width / 4 + 0.025, z: 0.034, handle: 1 },
+        { x: width / 4 - 0.025, z: -0.034, handle: -1 },
+      ]
+    : [{ x: 0, z: 0.034, handle: 1 }];
+
+  return (
+    <>
+      {leaves.map((leaf, index) => (
+        <group key={index} position={[leaf.x, 0, leaf.z]}>
+          <RoundedBox
+            args={[panelW, panelH, 0.042]}
+            radius={0.012}
+            smoothness={2}
+            position={[0, panelH / 2, 0]}
+            castShadow
+            receiveShadow
+          >
+            <meshStandardMaterial color={FRAME_WOOD} roughness={0.65} metalness={0.05} />
+          </RoundedBox>
+          {[-1, 1].map((face) => (
+            <mesh
+              key={face}
+              position={[leaf.handle * (panelW / 2 - 0.09), height * 0.47, face * 0.045]}
+              castShadow
+            >
+              <sphereGeometry args={[0.024, 16, 12]} />
+              <meshStandardMaterial color={METAL} roughness={0.25} metalness={0.75} />
+            </mesh>
+          ))}
+        </group>
+      ))}
+    </>
+  );
+}
+
 function OpeningMesh({ room, opening }: { room: Room; opening: Opening }) {
   const select = usePlanner((s) => s.select);
   const { x, z, rotationY, inwardLocal, thickness } = openingTransform(room, opening);
   const isWindow = opening.kind === 'window';
+  const isSliding = opening.kind === 'door' && (opening.doorType ?? 'swing') === 'sliding';
   const depth = thickness + 0.035;
   const frameT = 0.055;
   const height = opening.height;
@@ -129,17 +171,29 @@ function OpeningMesh({ room, opening }: { room: Room; opening: Opening }) {
 
       {opening.kind === 'door' && (
         <>
-          <mesh position={[0, 0.008, 0]} receiveShadow>
-            <boxGeometry args={[width, 0.016, depth + 0.02]} />
-            <meshStandardMaterial color="#d9cebb" roughness={0.7} />
-          </mesh>
-          <DoorLeaf
-            width={width}
-            height={height}
-            inwardLocal={inwardLocal}
-            swing={opening.swing ?? 'in'}
-            hinge={opening.hinge ?? 'start'}
-          />
+          {isSliding ? (
+            <>
+              <mesh position={[0, 0.01, 0]} receiveShadow>
+                <boxGeometry args={[width + 0.02, 0.02, depth + 0.07]} />
+                <meshStandardMaterial color={METAL} roughness={0.4} metalness={0.55} />
+              </mesh>
+              <SlidingLeaves width={width} height={height} />
+            </>
+          ) : (
+            <>
+              <mesh position={[0, 0.008, 0]} receiveShadow>
+                <boxGeometry args={[width, 0.016, depth + 0.02]} />
+                <meshStandardMaterial color="#d9cebb" roughness={0.7} />
+              </mesh>
+              <DoorLeaf
+                width={width}
+                height={height}
+                inwardLocal={inwardLocal}
+                swing={opening.swing ?? 'in'}
+                hinge={opening.hinge ?? 'start'}
+              />
+            </>
+          )}
         </>
       )}
 

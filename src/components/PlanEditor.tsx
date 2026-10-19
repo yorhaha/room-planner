@@ -1236,6 +1236,8 @@ function Opening2D({
   const inward = sideInward(opening.side);
   const dir = sideDir(opening.side);
   const t = Math.max(room.wallThickness, 0.1);
+  const isSliding = opening.kind === 'door' && opening.doorType === 'sliding';
+  const trackOffset = t * 0.5 + 0.06;
   const swing = opening.swing ?? 'in';
   const hingeSign = (opening.hinge ?? 'start') === 'start' ? 1 : -1;
   const swingSign = swing === 'in' ? 1 : -1;
@@ -1300,23 +1302,71 @@ function Opening2D({
         <g pointerEvents="none">
           <Tick x={start.x} z={start.z} dir={dir} length={t * 1.25} />
           <Tick x={end.x} z={end.z} dir={dir} length={t * 1.25} />
-          <line
-            x1={hinge.x}
-            y1={hinge.z}
-            x2={tip.x}
-            y2={tip.z}
-            stroke="#8d6644"
-            strokeWidth={0.045}
-            strokeLinecap="round"
-          />
-          <path
-            d={`M ${arcEnd.x} ${arcEnd.z} A ${opening.width} ${opening.width} 0 0 ${sweep} ${tip.x} ${tip.z}`}
-            fill="none"
-            stroke="#b3a794"
-            strokeWidth={0.018}
-            strokeDasharray="0.08 0.06"
-          />
-          <circle cx={hinge.x} cy={hinge.z} r={0.035} fill="#8d6644" />
+          {isSliding ? (
+            <>
+              <line
+                x1={start.x}
+                y1={start.z}
+                x2={end.x}
+                y2={end.z}
+                stroke="#b3a794"
+                strokeWidth={0.014}
+                strokeDasharray="0.05 0.04"
+              />
+              {opening.width >= 1.3 ? (
+                <>
+                  <SlidingPanel
+                    center={center}
+                    dir={dir}
+                    inward={inward}
+                    from={-opening.width / 2}
+                    to={0.03}
+                    offset={trackOffset}
+                    handle="end"
+                  />
+                  <SlidingPanel
+                    center={center}
+                    dir={dir}
+                    inward={inward}
+                    from={-0.03}
+                    to={opening.width / 2}
+                    offset={-trackOffset}
+                    handle="start"
+                  />
+                </>
+              ) : (
+                <SlidingPanel
+                  center={center}
+                  dir={dir}
+                  inward={inward}
+                  from={-opening.width / 2}
+                  to={opening.width / 2}
+                  offset={trackOffset}
+                  handle="end"
+                />
+              )}
+            </>
+          ) : (
+            <>
+              <line
+                x1={hinge.x}
+                y1={hinge.z}
+                x2={tip.x}
+                y2={tip.z}
+                stroke="#8d6644"
+                strokeWidth={0.045}
+                strokeLinecap="round"
+              />
+              <path
+                d={`M ${arcEnd.x} ${arcEnd.z} A ${opening.width} ${opening.width} 0 0 ${sweep} ${tip.x} ${tip.z}`}
+                fill="none"
+                stroke="#b3a794"
+                strokeWidth={0.018}
+                strokeDasharray="0.08 0.06"
+              />
+              <circle cx={hinge.x} cy={hinge.z} r={0.035} fill="#8d6644" />
+            </>
+          )}
         </g>
       )}
 
@@ -1345,7 +1395,9 @@ function Opening2D({
           pointerEvents="none"
         >
           {opening.kind === 'door'
-            ? `门 ${fmt(opening.width)} m · ${swing === 'out' ? '外开' : '内开'}`
+            ? isSliding
+              ? `推拉门 ${fmt(opening.width)} m`
+              : `平开门 ${fmt(opening.width)} m · ${swing === 'out' ? '外开' : '内开'}`
             : opening.kind === 'window'
               ? `窗 ${fmt(opening.width)} m`
               : `洞口 ${fmt(opening.width)} m`}
@@ -1364,6 +1416,46 @@ function Opening2D({
           onPointerDown={(e) => onPointerDown(e, opening)}
         />
       )}
+    </g>
+  );
+}
+
+function SlidingPanel({
+  center,
+  dir,
+  inward,
+  from,
+  to,
+  offset,
+  handle,
+}: {
+  center: { x: number; z: number };
+  dir: { dx: number; dz: number };
+  inward: { nx: number; nz: number };
+  from: number;
+  to: number;
+  offset: number;
+  handle: 'start' | 'end';
+}) {
+  const at = (t: number) => ({
+    x: center.x + dir.dx * t + inward.nx * offset,
+    z: center.z + dir.dz * t + inward.nz * offset,
+  });
+  const a = at(from);
+  const b = at(to);
+  const h = at(handle === 'start' ? from + 0.09 : to - 0.09);
+  return (
+    <g>
+      <line
+        x1={a.x}
+        y1={a.z}
+        x2={b.x}
+        y2={b.z}
+        stroke="#8d6644"
+        strokeWidth={0.055}
+        strokeLinecap="butt"
+      />
+      <circle cx={h.x} cy={h.z} r={0.028} fill="#7a5a3d" />
     </g>
   );
 }
