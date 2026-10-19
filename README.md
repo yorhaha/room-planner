@@ -54,6 +54,14 @@ npm run preview
 | `空格` + 拖动 | 平移画布 |
 | `Esc` | 取消选择 / 退出工具 |
 
+## GitHub Pages 部署
+
+仓库包含 `.github/workflows/deploy.yml`，推送到 `main` 后会自动构建并发布到 GitHub Pages：
+
+https://yorhaha.github.io/room-planner/
+
+首次部署前，需要在仓库 **Settings → Pages → Build and deployment** 中把 **Source** 设为 **GitHub Actions**。本地开发使用根路径 `/`，生产构建使用 `/room-planner/` 作为资源基础路径。
+
 ## 技术栈
 
 React 18 + TypeScript + Vite；状态管理使用 Zustand；3D 使用 Three.js、@react-three/fiber 与 @react-three/drei；平面编辑器为自绘 SVG。
