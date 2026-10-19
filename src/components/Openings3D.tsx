@@ -52,16 +52,26 @@ function DoorLeaf({
   );
 }
 
-function SlidingLeaves({ width, height }: { width: number; height: number }) {
+function SlidingLeaves({
+  width,
+  height,
+  inwardLocal,
+  double,
+}: {
+  width: number;
+  height: number;
+  inwardLocal: 1 | -1;
+  double: boolean;
+}) {
   const panelH = height - 0.06;
-  const double = width >= 1.3;
-  const panelW = double ? width / 2 + 0.05 : width - 0.05;
+  const panelW = double ? width / 2 + 0.06 : width - 0.01;
+  const handleInset = Math.min(0.09, Math.max(0.02, panelW / 2 - 0.03));
   const leaves = double
     ? [
-        { x: -width / 4 + 0.025, z: 0.034, handle: 1 },
-        { x: width / 4 - 0.025, z: -0.034, handle: -1 },
+        { x: -width / 4 + 0.03, z: inwardLocal * 0.034, handle: 1 },
+        { x: width / 4 - 0.03, z: -inwardLocal * 0.034, handle: -1 },
       ]
-    : [{ x: 0, z: 0.034, handle: 1 }];
+    : [{ x: 0, z: inwardLocal * 0.034, handle: 1 }];
 
   return (
     <>
@@ -80,7 +90,7 @@ function SlidingLeaves({ width, height }: { width: number; height: number }) {
           {[-1, 1].map((face) => (
             <mesh
               key={face}
-              position={[leaf.handle * (panelW / 2 - 0.09), height * 0.47, face * 0.045]}
+              position={[leaf.handle * (panelW / 2 - handleInset), height * 0.47, face * 0.045]}
               castShadow
             >
               <sphereGeometry args={[0.024, 16, 12]} />
@@ -104,6 +114,7 @@ function OpeningMesh({ room, opening }: { room: Room; opening: Opening }) {
   const width = opening.width;
   const baseY = isWindow ? opening.sill : 0;
   const frameColor = isWindow ? FRAME_LIGHT : FRAME_WOOD;
+  const clearW = Math.max(0.12, width - frameT * 2);
 
   return (
     <group
@@ -174,10 +185,19 @@ function OpeningMesh({ room, opening }: { room: Room; opening: Opening }) {
           {isSliding ? (
             <>
               <mesh position={[0, 0.01, 0]} receiveShadow>
-                <boxGeometry args={[width + 0.02, 0.02, depth + 0.07]} />
+                <boxGeometry args={[clearW + 0.02, 0.02, depth + 0.07]} />
                 <meshStandardMaterial color={METAL} roughness={0.4} metalness={0.55} />
               </mesh>
-              <SlidingLeaves width={width} height={height} />
+              <mesh position={[0, height - frameT - 0.006, 0]} castShadow>
+                <boxGeometry args={[clearW + 0.01, 0.018, depth + 0.03]} />
+                <meshStandardMaterial color={METAL} roughness={0.4} metalness={0.55} />
+              </mesh>
+              <SlidingLeaves
+                width={clearW}
+                height={height}
+                inwardLocal={inwardLocal}
+                double={width >= 1.3}
+              />
             </>
           ) : (
             <>
