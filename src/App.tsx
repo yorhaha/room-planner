@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import Inspector from './components/Inspector';
 import LeftPanel from './components/LeftPanel';
 import PlanEditor from './components/PlanEditor';
+import RoomTypePicker from './components/RoomTypePicker';
 import TopBar from './components/TopBar';
 import {
   CloseIcon,
@@ -100,7 +101,7 @@ function HelpModal() {
               <div>
                 <span>01</span>
                 <strong>建房间</strong>
-                <p>点击「房间」添加，拖边缘或角点调整尺寸。</p>
+                <p>点击「房间」添加，先选择房间类型，拖边缘或角点调整尺寸。</p>
               </div>
               <div>
                 <span>02</span>
@@ -110,7 +111,7 @@ function HelpModal() {
               <div>
                 <span>03</span>
                 <strong>开门窗、放家具</strong>
-                <p>选择「门 / 窗」后点墙体开洞；从左侧家具库点击添加，拖角可缩放。</p>
+                <p>选择「门 / 窗」后点墙体开洞；门可切换内开 / 外开与铰链侧，家具拖角可缩放。</p>
               </div>
               <div>
                 <span>04</span>
@@ -190,8 +191,13 @@ export default function App() {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (isEditableTarget(e.target)) return;
       const state = usePlanner.getState();
+      if (e.key === 'Escape' && state.roomPickerOpen) {
+        e.preventDefault();
+        state.closeRoomPicker();
+        return;
+      }
+      if (isEditableTarget(e.target) || state.roomPickerOpen) return;
       const mod = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
 
@@ -319,6 +325,7 @@ export default function App() {
       <StatusBar />
       <Toast />
       {helpOpen && <HelpModal />}
+      <RoomTypePicker />
     </div>
   );
 }

@@ -12,14 +12,24 @@ function DoorLeaf({
   width,
   height,
   inwardLocal,
+  swing,
+  hinge,
 }: {
   width: number;
   height: number;
   inwardLocal: 1 | -1;
+  swing: 'in' | 'out';
+  hinge: 'start' | 'end';
 }) {
-  const beta = (-inwardLocal * 45 * Math.PI) / 180;
+  const hingeSign = hinge === 'end' ? -1 : 1;
+  const swingSign = swing === 'out' ? -1 : 1;
+  const beta = (-inwardLocal * hingeSign * swingSign * 45 * Math.PI) / 180;
+  const base = hinge === 'end' ? Math.PI : 0;
   return (
-    <group position={[-width / 2 + 0.06, 0.008, 0]} rotation={[0, beta, 0]}>
+    <group
+      position={[hingeSign * (width / 2 - 0.06), 0.008, 0]}
+      rotation={[0, base + beta, 0]}
+    >
       <RoundedBox
         args={[width - 0.12, height - 0.06, 0.045]}
         radius={0.012}
@@ -123,7 +133,13 @@ function OpeningMesh({ room, opening }: { room: Room; opening: Opening }) {
             <boxGeometry args={[width, 0.016, depth + 0.02]} />
             <meshStandardMaterial color="#d9cebb" roughness={0.7} />
           </mesh>
-          <DoorLeaf width={width} height={height} inwardLocal={inwardLocal} />
+          <DoorLeaf
+            width={width}
+            height={height}
+            inwardLocal={inwardLocal}
+            swing={opening.swing ?? 'in'}
+            hinge={opening.hinge ?? 'start'}
+          />
         </>
       )}
 

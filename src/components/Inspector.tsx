@@ -423,6 +423,20 @@ function OpeningInspector({ opening, room }: { opening: import('../types').Openi
   const maxOffset = Math.max(minOffset, len - opening.width / 2 - 0.03);
   const maxWidth = Math.max(0.3, len - 0.1);
   const maxHeight = room.height;
+  const isDoor = opening.kind === 'door';
+  const swing = opening.swing ?? 'in';
+  const hinge = opening.hinge ?? 'start';
+  const hingeOptions =
+    opening.side === 'n' || opening.side === 's'
+      ? [
+          { value: 'start' as const, label: '西侧' },
+          { value: 'end' as const, label: '东侧' },
+        ]
+      : [
+          { value: 'start' as const, label: '北侧' },
+          { value: 'end' as const, label: '南侧' },
+        ];
+  const hingeLabel = hingeOptions.find((o) => o.value === hinge)?.label ?? '';
 
   return (
     <aside className="right-panel">
@@ -463,6 +477,61 @@ function OpeningInspector({ opening, room }: { opening: import('../types').Openi
             ))}
           </div>
         </Section>
+
+        {isDoor && (
+          <Section title="开启方式">
+            <div>
+              <div className="range-head">
+                <span>开向</span>
+                <span className="range-value">
+                  {swing === 'in' ? '内开 · 向房间内' : '外开 · 向房间外'}
+                </span>
+              </div>
+              <div className="segmented full">
+                <button
+                  className={swing === 'in' ? 'active' : ''}
+                  onClick={() => {
+                    if (swing !== 'in') updateOpening(opening.id, { swing: 'in' });
+                  }}
+                >
+                  内开
+                </button>
+                <button
+                  className={swing === 'out' ? 'active' : ''}
+                  onClick={() => {
+                    if (swing !== 'out') updateOpening(opening.id, { swing: 'out' });
+                  }}
+                >
+                  外开
+                </button>
+              </div>
+            </div>
+            <div className="range-field">
+              <div className="range-head">
+                <span>铰链位置</span>
+                <span className="range-value">{hingeLabel}</span>
+              </div>
+              <div className="segmented full">
+                {hingeOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    className={hinge === option.value ? 'active' : ''}
+                    onClick={() => {
+                      if (hinge !== option.value) {
+                        updateOpening(opening.id, { hinge: option.value });
+                      }
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="hint">
+              内开指向所属房间内打开；铰链方位按平面图的东南西北方向标注，可在平面图中直接查看门弧。
+            </p>
+          </Section>
+        )}
 
         <Section title="尺寸">
           <div className="field-grid">

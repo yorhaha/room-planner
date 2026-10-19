@@ -100,6 +100,12 @@ function normalizeProject(input: unknown): Project | null {
         height,
         sill,
         kind,
+        ...(kind === 'door'
+          ? {
+              swing: raw.swing === 'out' ? ('out' as const) : ('in' as const),
+              hinge: raw.hinge === 'end' ? ('end' as const) : ('start' as const),
+            }
+          : {}),
       };
       openings.push(clampOpening(room, opening));
     });
@@ -193,6 +199,16 @@ function selectionExists(project: Project, sel: Selection): Selection {
   return null;
 }
 
+/** 选择房间类型后，同名房间自动编号 */
+function uniqueRoomName(base: string, rooms: Room[]): string {
+  const stem = base.trim().slice(0, 20) || autoRoomName(rooms);
+  const used = new Set(rooms.map((r) => r.name));
+  if (!used.has(stem)) return stem;
+  let i = 2;
+  while (used.has(`${stem} ${i}`)) i += 1;
+  return `${stem} ${i}`;
+}
+
 interface Toast {
   id: number;
   message: string;
@@ -220,12 +236,15 @@ interface PlannerState {
   notify: (message: string) => void;
   dismissToast: () => void;
   setHelpOpen: (open: boolean) => void;
+  roomPickerOpen: boolean;
+  openRoomPicker: () => void;
+  closeRoomPicker: () => void;
 
   checkpoint: () => void;
   undo: () => void;
   redo: () => void;
 
-  addRoom: () => void;
+  addRoom: (opts?: { name?: string; w?: number; d?: number }) => void;
   updateRoom: (id: string, patch: Partial<Room>, transient?: boolean) => void;
   moveRoom: (id: string, x: number, z: number, transient?: boolean) => void;
   deleteRoom: (id: string) => void;
@@ -285,6 +304,7 @@ export const usePlanner = create<PlannerState>((set, get) => {
     savedAt: initialSavedAt,
     toast: null,
     helpOpen: false,
+    roomPickerOpen: false,
 
     select: (selection) => set({ selection }),
     setTool: (tool) => set(tool === 'select' ? { tool } : { tool, view: '2d' }),
@@ -293,6 +313,8 @@ export const usePlanner = create<PlannerState>((set, get) => {
     notify,
     dismissToast: () => set({ toast: null }),
     setHelpOpen: (helpOpen) => set({ helpOpen }),
+    openRoomPicker: () => set({ roomPickerOpen: true }),
+    closeRoomPicker: () => set({ roomPickerOpen: false }),
 
     setProjectName: (name, transient = true) => {
       const clean = name.slice(0, 60);
@@ -339,7 +361,7 @@ export const usePlanner = create<PlannerState>((set, get) => {
       });
     },
 
-    addRoom: () => {
+    addRoom: (opts) => {
       const state = get();
       const rooms = state.project.rooms;
       let x = 0;
@@ -353,11 +375,11 @@ export const usePlanner = create<PlannerState>((set, get) => {
       }
       const room: Room = {
         id: uid('room'),
-        name: autoRoomName(rooms),
+        name: uniqueRoomName(opts?.name ?? autoRoomName(rooms), rooms),
         x,
         z,
-        w: 4,
-        d: 3.6,
+        w: Math.round(clamp(opts?.w ?? 4, 1, 60) * 10) / 10,
+        d: Math.round(clamp(opts?.d ?? 3.6, 1, 60) * 10) / 10,
         height: anchor?.height ?? 2.8,
         wallThickness: anchor?.wallThickness ?? 0.12,
         floorColor: FLOOR_COLORS[rooms.length % FLOOR_COLORS.length],
@@ -366,7 +388,12 @@ export const usePlanner = create<PlannerState>((set, get) => {
       applyProject((p) => {
         p.rooms.push(room);
       });
-      set({ selection: { kind: 'room', id: room.id }, tool: 'select', view: '2d' });
+      set({
+        selection: { kind: 'room', id: room.id },
+        tool: 'select',
+        view: '2d',
+        roomPickerOpen: false,
+      });
       notify(`已添加「${room.name}」，拖动房间边缘可自动吸附连接`);
     },
 
@@ -440,6 +467,9 @@ export const usePlanner = create<PlannerState>((set, get) => {
         height,
         sill,
         kind,
+        ...(kind === 'door'
+          ? { swing: 'in' as const, hinge: 'start' as const }
+          : {}),
       };
       const opening = clampOpening(room, base);
       applyProject((p) => {
@@ -593,6 +623,7 @@ export const usePlanner = create<PlannerState>((set, get) => {
         tool: 'select',
         view: '2d',
         epoch: state.epoch + 1,
+        roomPickerOpen: false,
       });
       notify('已新建空白户型 · 按 ⌘Z 可撤销');
     },
@@ -607,6 +638,7 @@ export const usePlanner = create<PlannerState>((set, get) => {
         tool: 'select',
         view: '2d',
         epoch: state.epoch + 1,
+        roomPickerOpen: false,
       });
       notify('已载入示例户型');
     },
@@ -628,6 +660,7 @@ export const usePlanner = create<PlannerState>((set, get) => {
         tool: 'select',
         view: '2d',
         epoch: state.epoch + 1,
+        roomPickerOpen: false,
       });
       notify('户型导入成功');
       return true;

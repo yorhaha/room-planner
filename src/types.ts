@@ -32,6 +32,10 @@ export interface Opening {
   /** 离地高度（门通常为 0） */
   sill: number;
   kind: OpeningKind;
+  /** 门的开启方向：in 开向所属房间，out 向房间外开 */
+  swing?: 'in' | 'out';
+  /** 门铰链位于墙的起点侧或终点侧 */
+  hinge?: 'start' | 'end';
 }
 
 export type FurnitureType =

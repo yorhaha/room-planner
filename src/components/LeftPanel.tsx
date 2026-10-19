@@ -17,7 +17,7 @@ const FURNITURE_LIST = Object.values(FURNITURE);
 export default function LeftPanel() {
   const project = usePlanner((s) => s.project);
   const selection = usePlanner((s) => s.selection);
-  const addRoom = usePlanner((s) => s.addRoom);
+  const openRoomPicker = usePlanner((s) => s.openRoomPicker);
   const addFurniture = usePlanner((s) => s.addFurniture);
   const select = usePlanner((s) => s.select);
   const [filter, setFilter] = useState<Filter>(ALL);
@@ -34,7 +34,7 @@ export default function LeftPanel() {
               <h3>户型</h3>
               <span className="section-count">{project.rooms.length}</span>
             </div>
-            <button className="mini-icon-btn" onClick={addRoom} title="添加房间">
+            <button className="mini-icon-btn" onClick={openRoomPicker} title="添加房间">
               <PlusIcon size={15} />
             </button>
           </div>
@@ -65,7 +65,7 @@ export default function LeftPanel() {
             })}
 
             {project.rooms.length === 0 && (
-              <button className="room-row-empty" onClick={addRoom}>
+              <button className="room-row-empty" onClick={openRoomPicker}>
                 <PlusIcon size={15} />
                 <span>添加第一个房间</span>
               </button>

@@ -313,7 +313,7 @@ export default function PlanEditor() {
   const selection = usePlanner((s) => s.selection);
   const tool = usePlanner((s) => s.tool);
   const epoch = usePlanner((s) => s.epoch);
-  const addRoom = usePlanner((s) => s.addRoom);
+  const openRoomPicker = usePlanner((s) => s.openRoomPicker);
   const setTool = usePlanner((s) => s.setTool);
   const select = usePlanner((s) => s.select);
   const loadSample = usePlanner((s) => s.loadSample);
@@ -1141,7 +1141,7 @@ export default function PlanEditor() {
           <span>窗</span>
         </button>
         <div className="toolbar-sep" />
-        <button className="tool-btn" onClick={addRoom} title="添加房间">
+        <button className="tool-btn" onClick={openRoomPicker} title="添加房间">
           <RoomIcon />
           <span>房间</span>
         </button>
@@ -1172,7 +1172,7 @@ export default function PlanEditor() {
             <h2>从一个房间开始</h2>
             <p>添加房间、拖拽边缘调整尺寸；把房间靠在一起，墙体就会自动连通。</p>
             <div className="empty-actions">
-              <button className="btn btn-primary" onClick={addRoom}>
+              <button className="btn btn-primary" onClick={openRoomPicker}>
                 <PlusIcon size={16} />
                 创建房间
               </button>
@@ -1236,11 +1236,16 @@ function Opening2D({
   const inward = sideInward(opening.side);
   const dir = sideDir(opening.side);
   const t = Math.max(room.wallThickness, 0.1);
-  const cross = dir.dx * inward.nz - dir.dz * inward.nx;
+  const swing = opening.swing ?? 'in';
+  const hingeSign = (opening.hinge ?? 'start') === 'start' ? 1 : -1;
+  const swingSign = swing === 'in' ? 1 : -1;
+  const hinge = hingeSign === 1 ? start : end;
+  const arcEnd = hingeSign === 1 ? end : start;
+  const openDir = { nx: inward.nx * swingSign, nz: inward.nz * swingSign };
+  const tip = { x: hinge.x + openDir.nx * opening.width, z: hinge.z + openDir.nz * opening.width };
+  const closedDir = { dx: dir.dx * hingeSign, dz: dir.dz * hingeSign };
+  const cross = closedDir.dx * openDir.nz - closedDir.dz * openDir.nx;
   const sweep = cross > 0 ? 1 : 0;
-  const hinge = start;
-  const tip = { x: hinge.x + inward.nx * opening.width, z: hinge.z + inward.nz * opening.width };
-  const arcEnd = { x: start.x + dir.dx * opening.width, z: start.z + dir.dz * opening.width };
 
   const labelPoint = {
     x: center.x + inward.nx * (t + 0.17),
@@ -1339,7 +1344,11 @@ function Opening2D({
           fontWeight={600}
           pointerEvents="none"
         >
-          {opening.kind === 'door' ? '门' : opening.kind === 'window' ? '窗' : '洞口'} {fmt(opening.width)} m
+          {opening.kind === 'door'
+            ? `门 ${fmt(opening.width)} m · ${swing === 'out' ? '外开' : '内开'}`
+            : opening.kind === 'window'
+              ? `窗 ${fmt(opening.width)} m`
+              : `洞口 ${fmt(opening.width)} m`}
         </text>
       )}
 
