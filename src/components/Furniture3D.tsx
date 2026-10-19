@@ -1,6 +1,6 @@
 import { RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
-import { getDef, shade } from '../catalog';
+import { getDef, getFurnitureSize, shade } from '../catalog';
 import { usePlanner } from '../store';
 import type { Furniture, FurnitureType } from '../types';
 
@@ -651,6 +651,396 @@ function Washer({ w, d, h, color }: ModelProps) {
   );
 }
 
+function OfficeChair({ w, d, h, color }: ModelProps) {
+  const light = shade(color, 0.12);
+  const dark = shade(color, -0.16);
+  return (
+    <group>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <group key={i} rotation={[0, (i / 5) * Math.PI * 2, 0]}>
+          <Box p={[w * 0.2, 0.05, 0]} s={[w * 0.48, 0.03, 0.05]} c={DARK} rough={0.4} metal={0.3} />
+          <mesh position={[w * 0.42, 0.034, 0]} castShadow>
+            <sphereGeometry args={[0.034, 12, 10]} />
+            <meshStandardMaterial color="#2f3335" roughness={0.55} />
+          </mesh>
+        </group>
+      ))}
+      <Cyl p={[0, 0.27, 0]} rt={0.038} rb={0.05} h={0.4} c={METAL} metal={0.5} rough={0.3} seg={16} />
+      <Cyl p={[0, 0.48, 0]} rt={0.07} rb={0.07} h={0.04} c={DARK} seg={18} />
+      <RB p={[0, 0.53, 0]} s={[w * 0.84, 0.1, d * 0.8]} c={color} r={0.04} />
+      <RB p={[0, 0.575, 0.01]} s={[w * 0.74, 0.035, d * 0.68]} c={light} r={0.02} rough={0.95} />
+      <RB
+        p={[0, h * 0.72, -d / 2 + 0.12]}
+        s={[w * 0.8, h * 0.44, 0.1]}
+        c={color}
+        r={0.045}
+        rot={[-0.08, 0, 0]}
+      />
+      <RB
+        p={[0, h * 0.68, -d / 2 + 0.185]}
+        s={[w * 0.66, h * 0.27, 0.05]}
+        c={light}
+        r={0.03}
+        rot={[-0.08, 0, 0]}
+      />
+      {[-1, 1].map((side) => (
+        <group key={side}>
+          <Cyl
+            p={[side * w * 0.43, 0.61, 0.02]}
+            rt={0.014}
+            rb={0.014}
+            h={0.13}
+            c={METAL}
+            metal={0.5}
+            rough={0.3}
+            seg={10}
+          />
+          <RB
+            p={[side * w * 0.43, 0.69, 0.02]}
+            s={[0.06, 0.035, d * 0.52]}
+            c={dark}
+            r={0.015}
+          />
+        </group>
+      ))}
+    </group>
+  );
+}
+
+function LoungeChair({ w, d, color }: ModelProps) {
+  const light = shade(color, 0.14);
+  const wood = '#8a6547';
+  return (
+    <group>
+      {[
+        [-1, -1],
+        [1, -1],
+        [-1, 1],
+        [1, 1],
+      ].map(([sx, sz], i) => (
+        <Box
+          key={i}
+          p={[sx * (w / 2 - 0.08), 0.2, sz * (d / 2 - 0.08)]}
+          s={[0.05, 0.4, 0.05]}
+          c={wood}
+          rot={[sz * 0.12, 0, -sx * 0.12]}
+        />
+      ))}
+      <Box p={[-w / 2 + 0.04, 0.42, 0]} s={[0.07, 0.06, d * 0.9]} c={wood} />
+      <Box p={[w / 2 - 0.04, 0.42, 0]} s={[0.07, 0.06, d * 0.9]} c={wood} />
+      <Box p={[0, 0.38, 0]} s={[w * 0.8, 0.05, d * 0.82]} c={shade(wood, -0.05)} />
+      <RB p={[0, 0.46, 0.02]} s={[w * 0.78, 0.12, d * 0.72]} c={color} r={0.045} />
+      <RB
+        p={[0, 0.66, -d / 2 + 0.17]}
+        s={[w * 0.78, 0.42, 0.14]}
+        c={light}
+        r={0.05}
+        rot={[-0.18, 0, 0]}
+      />
+      <RB p={[-w / 2 + 0.07, 0.52, 0.02]} s={[0.1, 0.07, d * 0.78]} c={wood} r={0.02} />
+      <RB p={[w / 2 - 0.07, 0.52, 0.02]} s={[0.1, 0.07, d * 0.78]} c={wood} r={0.02} />
+    </group>
+  );
+}
+
+function Stool({ w, d, color }: ModelProps) {
+  return (
+    <group>
+      <Cyl p={[0, 0.69, 0]} rt={w / 2} rb={w / 2 - 0.015} h={0.06} c={color} seg={24} />
+      <Cyl p={[0, 0.66, 0]} rt={w / 2 - 0.035} rb={w / 2 - 0.035} h={0.015} c={shade(color, 0.1)} seg={24} />
+      {legPositions(w, d, 0.07).map(([x, z], i) => (
+        <Box
+          key={i}
+          p={[x, 0.335, z]}
+          s={[0.045, 0.66, 0.045]}
+          c={shade(color, -0.1)}
+          rot={[z * 0.18, 0, -x * 0.18]}
+        />
+      ))}
+      <mesh position={[0, 0.24, 0]} rotation={[-Math.PI / 2, 0, 0]} castShadow>
+        <torusGeometry args={[w * 0.3, 0.012, 8, 28]} />
+        <meshStandardMaterial color={METAL} metalness={0.5} roughness={0.35} />
+      </mesh>
+    </group>
+  );
+}
+
+function Bench({ w, d, color }: ModelProps) {
+  return (
+    <group>
+      <RB p={[0, 0.41, 0]} s={[w, 0.06, d]} c={color} r={0.018} />
+      <RB p={[0, 0.465, 0]} s={[w - 0.08, 0.05, d - 0.08]} c={shade(color, 0.12)} r={0.025} rough={0.95} />
+      {legPositions(w, d, 0.09).map(([x, z], i) => (
+        <Box key={i} p={[x, 0.19, z]} s={[0.06, 0.38, 0.06]} c={shade(color, -0.1)} />
+      ))}
+      <Box p={[0, 0.12, -d / 2 + 0.09]} s={[Math.max(0.1, w - 0.3), 0.05, 0.05]} c={shade(color, -0.06)} />
+      <Box p={[0, 0.12, d / 2 - 0.09]} s={[Math.max(0.1, w - 0.3), 0.05, 0.05]} c={shade(color, -0.06)} />
+    </group>
+  );
+}
+
+function SideTable({ w, color }: ModelProps) {
+  const r = w / 2;
+  return (
+    <group>
+      <Cyl p={[0, 0.53, 0]} rt={r} rb={r} h={0.045} c={color} seg={28} />
+      <Cyl p={[0, 0.18, 0]} rt={r * 0.72} rb={r * 0.72} h={0.025} c={shade(color, 0.06)} seg={24} />
+      {[0, 1, 2].map((i) => {
+        const a = (i / 3) * Math.PI * 2 + Math.PI / 6;
+        return (
+          <Cyl
+            key={i}
+            p={[Math.cos(a) * r * 0.62, 0.27, Math.sin(a) * r * 0.62]}
+            rt={0.018}
+            rb={0.022}
+            h={0.51}
+            c={shade(color, -0.08)}
+            seg={10}
+          />
+        );
+      })}
+    </group>
+  );
+}
+
+function Dresser({ w, d, h, color }: ModelProps) {
+  const bodyH = h - 0.1;
+  const rowH = bodyH / 3;
+  return (
+    <group>
+      <Legs w={w} d={d} inset={0.09} h={0.1} c={shade(color, -0.18)} r={0.02} />
+      <RB p={[0, 0.1 + bodyH / 2, 0]} s={[w, bodyH, d]} c={color} r={0.018} />
+      {[0, 1, 2].map((i) => {
+        const y = 0.1 + rowH * (i + 0.5);
+        return (
+          <group key={i}>
+            <Box
+              p={[0, y, d / 2 + 0.006]}
+              s={[w - 0.07, rowH - 0.035, 0.018]}
+              c={shade(color, 0.05)}
+            />
+            <Cyl
+              p={[0, y, d / 2 + 0.03]}
+              rt={0.014}
+              rb={0.014}
+              h={0.12}
+              c={METAL}
+              rot={[0, 0, Math.PI / 2]}
+              seg={10}
+            />
+          </group>
+        );
+      })}
+      <RB p={[0, h - 0.02, 0]} s={[w + 0.03, 0.04, d + 0.03]} c={shade(color, -0.05)} r={0.012} />
+    </group>
+  );
+}
+
+function Crib({ w, d, h, color }: ModelProps) {
+  const railTop = h - 0.08;
+  const slatBottom = 0.3;
+  const slatH = railTop - slatBottom;
+  const slatY = (slatBottom + railTop) / 2;
+  const slatsX = Math.max(3, Math.floor(w / 0.14));
+  const slatsZ = Math.max(4, Math.floor(d / 0.14));
+  return (
+    <group>
+      {legPositions(w, d, 0.035).map(([x, z], i) => (
+        <Box key={i} p={[x, h / 2, z]} s={[0.055, h, 0.055]} c={shade(color, -0.04)} />
+      ))}
+      {Array.from({ length: slatsX }).map((_, i) => {
+        const x = -w / 2 + 0.09 + (i * (w - 0.18)) / Math.max(1, slatsX - 1);
+        return (
+          <group key={`x${i}`}>
+            <Box p={[x, slatY, -d / 2 + 0.035]} s={[0.022, slatH, 0.022]} c={color} />
+            <Box p={[x, slatY, d / 2 - 0.035]} s={[0.022, slatH, 0.022]} c={color} />
+          </group>
+        );
+      })}
+      {Array.from({ length: slatsZ }).map((_, i) => {
+        const z = -d / 2 + 0.09 + (i * (d - 0.18)) / Math.max(1, slatsZ - 1);
+        return (
+          <group key={`z${i}`}>
+            <Box p={[-w / 2 + 0.035, slatY, z]} s={[0.022, slatH, 0.022]} c={color} />
+            <Box p={[w / 2 - 0.035, slatY, z]} s={[0.022, slatH, 0.022]} c={color} />
+          </group>
+        );
+      })}
+      {[railTop, slatBottom].map((y) => (
+        <group key={y}>
+          <Box p={[0, y, -d / 2 + 0.035]} s={[w, 0.05, 0.05]} c={shade(color, -0.06)} />
+          <Box p={[0, y, d / 2 - 0.035]} s={[w, 0.05, 0.05]} c={shade(color, -0.06)} />
+          <Box p={[-w / 2 + 0.035, y, 0]} s={[0.05, 0.05, d]} c={shade(color, -0.06)} />
+          <Box p={[w / 2 - 0.035, y, 0]} s={[0.05, 0.05, d]} c={shade(color, -0.06)} />
+        </group>
+      ))}
+      <Box p={[0, 0.285, 0]} s={[w - 0.1, 0.03, d - 0.1]} c={shade(color, -0.12)} />
+      <RB p={[0, 0.38, 0]} s={[w - 0.12, 0.16, d - 0.12]} c="#f5f1e8" r={0.06} rough={0.95} />
+    </group>
+  );
+}
+
+function Vanity({ w, d, h, color }: ModelProps) {
+  const bodyH = h - 0.12;
+  return (
+    <group>
+      <Box p={[0, 0.05, 0]} s={[w - 0.06, 0.1, d - 0.04]} c={shade(color, -0.2)} />
+      <RB p={[0, 0.1 + bodyH / 2, 0]} s={[w, bodyH, d]} c={color} r={0.02} />
+      {[-1, 1].map((side) => (
+        <group key={side}>
+          <Box
+            p={[side * w * 0.24, 0.1 + bodyH / 2, d / 2 + 0.006]}
+            s={[w / 2 - 0.035, bodyH - 0.07, 0.016]}
+            c={shade(color, 0.05)}
+          />
+          <Cyl
+            p={[side * 0.045, 0.1 + bodyH * 0.62, d / 2 + 0.028]}
+            rt={0.011}
+            rb={0.011}
+            h={0.1}
+            c={METAL}
+            rot={[0, 0, Math.PI / 2]}
+            seg={8}
+          />
+        </group>
+      ))}
+      <Box p={[0, h - 0.04, 0]} s={[w + 0.03, 0.06, d + 0.03]} c="#f3f0e8" rough={0.35} />
+      <Cyl
+        p={[0, h + 0.005, 0.02]}
+        rt={0.21}
+        rb={0.17}
+        h={0.07}
+        c="#faf9f5"
+        scale={[1, 1, 0.78]}
+        seg={28}
+        rough={0.25}
+      />
+      <Cyl
+        p={[0, h + 0.032, 0.02]}
+        rt={0.175}
+        rb={0.155}
+        h={0.02}
+        c="#d9d8d0"
+        scale={[1, 1, 0.78]}
+        seg={28}
+        rough={0.25}
+      />
+      <Cyl
+        p={[0, h + 0.13, -d / 2 + 0.1]}
+        rt={0.017}
+        rb={0.017}
+        h={0.24}
+        c={METAL}
+        metal={0.65}
+        rough={0.25}
+        seg={10}
+      />
+      <Cyl
+        p={[0, h + 0.24, -d / 2 + 0.17]}
+        rt={0.013}
+        rb={0.013}
+        h={0.16}
+        c={METAL}
+        metal={0.65}
+        rough={0.25}
+        rot={[Math.PI / 2, 0, 0]}
+        seg={10}
+      />
+    </group>
+  );
+}
+
+function KitchenIsland({ w, d, h, color }: ModelProps) {
+  const bodyH = h - 0.06;
+  const sinkX = w * 0.18;
+  return (
+    <group>
+      <RB p={[0, bodyH / 2, 0]} s={[w, bodyH, d]} c={color} r={0.015} />
+      <Box p={[0, h - 0.03, 0]} s={[w + 0.04, 0.06, d + 0.04]} c="#e9e4da" rough={0.4} />
+      {[-1, 1].map((side) => (
+        <group key={side}>
+          <Box
+            p={[side * w * 0.24, bodyH / 2, d / 2 + 0.006]}
+            s={[w / 2 - 0.045, bodyH - 0.12, 0.018]}
+            c={shade(color, 0.04)}
+          />
+          <Cyl
+            p={[side * 0.07, bodyH * 0.62, d / 2 + 0.03]}
+            rt={0.012}
+            rb={0.012}
+            h={0.12}
+            c={METAL}
+            rot={[0, 0, Math.PI / 2]}
+            seg={8}
+          />
+        </group>
+      ))}
+      <Box p={[sinkX, h - 0.003, 0.02]} s={[0.48, 0.025, 0.34]} c="#a9afb0" rough={0.35} metal={0.4} />
+      <Box p={[sinkX, h + 0.003, 0.02]} s={[0.42, 0.02, 0.28]} c="#6e7678" rough={0.3} metal={0.5} />
+      <Cyl
+        p={[sinkX, h + 0.13, -d / 2 + 0.11]}
+        rt={0.017}
+        rb={0.017}
+        h={0.24}
+        c={METAL}
+        metal={0.65}
+        rough={0.25}
+        seg={10}
+      />
+      <Cyl
+        p={[sinkX, h + 0.24, -d / 2 + 0.18]}
+        rt={0.013}
+        rb={0.013}
+        h={0.17}
+        c={METAL}
+        metal={0.65}
+        rough={0.25}
+        rot={[Math.PI / 2, 0, 0]}
+        seg={10}
+      />
+      <Box p={[-w * 0.28, h + 0.005, 0.04]} s={[0.36, 0.018, 0.24]} c="#b89570" />
+      <Cyl p={[-w * 0.28, h + 0.06, 0.04]} rt={0.07} rb={0.055} h={0.1} c="#d7ccb8" seg={20} />
+    </group>
+  );
+}
+
+function ShoeCabinet({ w, d, h, color }: ModelProps) {
+  const bodyH = h - 0.12;
+  return (
+    <group>
+      <Box p={[0, 0.05, 0]} s={[w - 0.05, 0.1, d - 0.03]} c={shade(color, -0.18)} />
+      <RB p={[0, 0.1 + bodyH / 2, 0]} s={[w, bodyH, d]} c={color} r={0.015} />
+      {[-1, 1].map((side) => (
+        <group key={side}>
+          <Box
+            p={[side * w * 0.24, 0.1 + bodyH / 2, d / 2 + 0.006]}
+            s={[w / 2 - 0.035, bodyH - 0.05, 0.016]}
+            c={shade(color, 0.05)}
+          />
+          {[0, 1, 2, 3].map((i) => (
+            <Box
+              key={i}
+              p={[side * w * 0.24 + (i - 1.5) * 0.045, 0.1 + bodyH / 2, d / 2 + 0.018]}
+              s={[0.012, bodyH - 0.1, 0.008]}
+              c={shade(color, -0.12)}
+            />
+          ))}
+          <Cyl
+            p={[side * 0.045, 0.1 + bodyH * 0.58, d / 2 + 0.032]}
+            rt={0.011}
+            rb={0.011}
+            h={0.1}
+            c={METAL}
+            rot={[0, 0, Math.PI / 2]}
+            seg={8}
+          />
+        </group>
+      ))}
+      <RB p={[0, h - 0.03, 0]} s={[w + 0.02, 0.035, d + 0.02]} c={shade(color, -0.06)} r={0.012} />
+    </group>
+  );
+}
+
 const MODELS: Record<FurnitureType, (props: ModelProps) => JSX.Element> = {
   sofa: Sofa,
   armchair: Armchair,
@@ -674,6 +1064,16 @@ const MODELS: Record<FurnitureType, (props: ModelProps) => JSX.Element> = {
   bathtub: Bathtub,
   shower: Shower,
   washer: Washer,
+  officeChair: OfficeChair,
+  loungeChair: LoungeChair,
+  stool: Stool,
+  bench: Bench,
+  sideTable: SideTable,
+  dresser: Dresser,
+  crib: Crib,
+  vanity: Vanity,
+  kitchenIsland: KitchenIsland,
+  shoeCabinet: ShoeCabinet,
 };
 
 function SelectionMark({ w, d, round }: { w: number; d: number; round?: boolean }) {
@@ -711,12 +1111,14 @@ function SelectionMark({ w, d, round }: { w: number; d: number; round?: boolean 
 
 export default function Furniture3D({ item }: { item: Furniture }) {
   const def = getDef(item.type);
+  const size = getFurnitureSize(item);
   const color = item.color ?? def.color;
   const selected = usePlanner(
     (s) => s.selection?.kind === 'furniture' && s.selection.id === item.id,
   );
   const select = usePlanner((s) => s.select);
   const Model = MODELS[item.type];
+  const scale: Vec3 = [size.w / def.w, size.h / def.h, size.d / def.d];
 
   return (
     <group
@@ -734,8 +1136,10 @@ export default function Furniture3D({ item }: { item: Furniture }) {
         document.body.style.cursor = 'default';
       }}
     >
-      <Model w={def.w} d={def.d} h={def.h} color={color} />
-      {selected && <SelectionMark w={def.w} d={def.d} round={def.round} />}
+      <group scale={scale}>
+        <Model w={def.w} d={def.d} h={def.h} color={color} />
+      </group>
+      {selected && <SelectionMark w={size.w} d={size.d} round={def.round} />}
     </group>
   );
 }

@@ -110,7 +110,7 @@ function HelpModal() {
               <div>
                 <span>03</span>
                 <strong>开门窗、放家具</strong>
-                <p>选择「门 / 窗」后点墙体开洞；从左侧家具库点击添加。</p>
+                <p>选择「门 / 窗」后点墙体开洞；从左侧家具库点击添加，拖角可缩放。</p>
               </div>
               <div>
                 <span>04</span>

@@ -1,5 +1,11 @@
 import { create } from 'zustand';
-import { FURNITURE, FLOOR_COLORS, WALL_COLORS } from './catalog';
+import {
+  FURNITURE,
+  FURNITURE_SIZE_MAX,
+  FURNITURE_SIZE_MIN,
+  FLOOR_COLORS,
+  WALL_COLORS,
+} from './catalog';
 import {
   autoRoomName,
   clamp,
@@ -109,6 +115,15 @@ function normalizeProject(input: unknown): Project | null {
       const z = asNum(raw.z, NaN);
       if (!Number.isFinite(x) || !Number.isFinite(z)) return;
       const rid = asStr(raw.roomId, '');
+      const def = FURNITURE[type];
+      let size: Furniture['size'];
+      if (isRec(raw.size)) {
+        size = {
+          w: Math.round(clamp(asNum(raw.size.w, def.w), FURNITURE_SIZE_MIN.w, FURNITURE_SIZE_MAX.w) * 1000) / 1000,
+          d: Math.round(clamp(asNum(raw.size.d, def.d), FURNITURE_SIZE_MIN.d, FURNITURE_SIZE_MAX.d) * 1000) / 1000,
+          h: Math.round(clamp(asNum(raw.size.h, def.h), FURNITURE_SIZE_MIN.h, FURNITURE_SIZE_MAX.h) * 1000) / 1000,
+        };
+      }
       furniture.push({
         id: asStr(raw.id, uid('fur')),
         type,
@@ -117,6 +132,7 @@ function normalizeProject(input: unknown): Project | null {
         z,
         rotation: ((asNum(raw.rotation, 0) % 360) + 360) % 360,
         ...(typeof raw.color === 'string' && /^#/.test(raw.color) ? { color: raw.color } : {}),
+        ...(size ? { size } : {}),
       });
     });
   }
@@ -511,6 +527,13 @@ export const usePlanner = create<PlannerState>((set, get) => {
         merged.x = Math.round(merged.x * 1000) / 1000;
         merged.z = Math.round(merged.z * 1000) / 1000;
         merged.rotation = ((merged.rotation % 360) + 360) % 360;
+        if (patch.size) {
+          merged.size = {
+            w: Math.round(clamp(patch.size.w, FURNITURE_SIZE_MIN.w, FURNITURE_SIZE_MAX.w) * 1000) / 1000,
+            d: Math.round(clamp(patch.size.d, FURNITURE_SIZE_MIN.d, FURNITURE_SIZE_MAX.d) * 1000) / 1000,
+            h: Math.round(clamp(patch.size.h, FURNITURE_SIZE_MIN.h, FURNITURE_SIZE_MAX.h) * 1000) / 1000,
+          };
+        }
         if (patch.x !== undefined || patch.z !== undefined) {
           const room = roomOfPoint(p.rooms, merged.x, merged.z);
           merged.roomId = room ? room.id : null;

@@ -123,7 +123,7 @@ export default function LeftPanel() {
             ))}
           </div>
 
-          <p className="panel-hint">家具会放入当前选中的房间，可拖动、旋转与换色。</p>
+          <p className="panel-hint">家具会放入当前选中的房间，可拖动、缩放、旋转与换色。</p>
         </section>
       </div>
     </aside>

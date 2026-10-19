@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import { getDef, shade, withAlpha } from '../catalog';
+import {
+  FURNITURE_SIZE_MAX,
+  FURNITURE_SIZE_MIN,
+  getDef,
+  getFurnitureSize,
+  shade,
+  withAlpha,
+} from '../catalog';
 import {
   buildWalls,
   clamp,
@@ -87,6 +94,16 @@ type Drag =
       type: 'furniture-rotate';
       id: string;
       center: PlanPoint;
+      moved: boolean;
+    }
+  | {
+      type: 'furniture-resize';
+      id: string;
+      corner: { sx: -1 | 1; sz: -1 | 1 };
+      startLocal: PlanPoint;
+      origW: number;
+      origD: number;
+      origH: number;
       moved: boolean;
     }
   | {
@@ -236,8 +253,8 @@ function snapFurniture(
   item: Furniture,
   rooms: Room[],
 ): PlanPoint {
-  const def = getDef(item.type);
-  const { hx, hz } = furnitureHalfExtents(item, def.w, def.d);
+  const { w, d } = getFurnitureSize(item);
+  const { hx, hz } = furnitureHalfExtents(item, w, d);
   let sx = roundTo(x, SNAP);
   let sz = roundTo(z, SNAP);
   const room = roomOfPoint(rooms, x, z);
@@ -256,6 +273,17 @@ function snapFurniture(
   if (snapX !== null) sx = snapX;
   if (snapZ !== null) sz = snapZ;
   return { x: Math.round(sx * 1000) / 1000, z: Math.round(sz * 1000) / 1000 };
+}
+
+/** 把平面坐标转换到家具自身坐标系（原点为家具中心，未旋转） */
+function furnitureLocalPoint(item: Furniture, p: PlanPoint): PlanPoint {
+  const rad = (item.rotation * Math.PI) / 180;
+  const dx = p.x - item.x;
+  const dz = p.z - item.z;
+  return {
+    x: dx * Math.cos(rad) + dz * Math.sin(rad),
+    z: -dx * Math.sin(rad) + dz * Math.cos(rad),
+  };
 }
 
 function findWallAt(project: Project, x: number, z: number, toolWidth: number): WallHover | null {
@@ -488,6 +516,26 @@ export default function PlanEditor() {
         return;
       }
 
+      if (drag.type === 'furniture-resize') {
+        const item = state.project.furniture.find((f) => f.id === drag.id);
+        if (!item) return;
+        const local = furnitureLocalPoint(item, p);
+        const offsetX = drag.origW / 2 - drag.corner.sx * drag.startLocal.x;
+        const offsetZ = drag.origD / 2 - drag.corner.sz * drag.startLocal.z;
+        let w = clamp((drag.corner.sx * local.x + offsetX) * 2, FURNITURE_SIZE_MIN.w, FURNITURE_SIZE_MAX.w);
+        let d = clamp((drag.corner.sz * local.z + offsetZ) * 2, FURNITURE_SIZE_MIN.d, FURNITURE_SIZE_MAX.d);
+        if (e.shiftKey) {
+          const k = Math.max(w / drag.origW, d / drag.origD);
+          w = clamp(drag.origW * k, FURNITURE_SIZE_MIN.w, FURNITURE_SIZE_MAX.w);
+          d = clamp(drag.origD * k, FURNITURE_SIZE_MIN.d, FURNITURE_SIZE_MAX.d);
+        }
+        w = Math.max(FURNITURE_SIZE_MIN.w, Math.round(w * 100) / 100);
+        d = Math.max(FURNITURE_SIZE_MIN.d, Math.round(d * 100) / 100);
+        ensureCheckpoint(drag);
+        state.updateFurniture(drag.id, { size: { w, d, h: drag.origH } }, true);
+        return;
+      }
+
       if (drag.type === 'opening-move') {
         const room = roomMap.get(drag.roomId);
         const opening = state.project.openings.find((o) => o.id === drag.id);
@@ -644,6 +692,30 @@ export default function PlanEditor() {
     };
   };
 
+  const handleFurnitureResizePointerDown = (
+    e: ReactPointerEvent,
+    item: Furniture,
+    sx: -1 | 1,
+    sz: -1 | 1,
+  ) => {
+    if (isPanGesture(e)) return;
+    if (e.button !== 0) return;
+    if (tool !== 'select') return;
+    e.stopPropagation();
+    select({ kind: 'furniture', id: item.id });
+    const size = getFurnitureSize(item);
+    dragRef.current = {
+      type: 'furniture-resize',
+      id: item.id,
+      corner: { sx, sz },
+      startLocal: furnitureLocalPoint(item, toPlan(e.clientX, e.clientY)),
+      origW: size.w,
+      origD: size.d,
+      origH: size.h,
+      moved: false,
+    };
+  };
+
   const handleResizePointerDown = (e: ReactPointerEvent, room: Room, handle: ResizeHandle) => {
     if (isPanGesture(e)) return;
     if (e.button !== 0) return;
@@ -788,8 +860,11 @@ export default function PlanEditor() {
           <g className="furniture">
             {orderedFurniture.map((item) => {
               const def = getDef(item.type);
+              const { w, d } = getFurnitureSize(item);
               const isSelected = selectedFurniture?.id === item.id;
               const color = item.color ?? def.color;
+              const maxFont = item.type === 'rug' ? 0.15 : 0.125;
+              const fontSize = clamp((w * 0.88) / Math.max(def.name.length, 1), 0.06, maxFont);
               return (
                 <g
                   key={item.id}
@@ -802,18 +877,18 @@ export default function PlanEditor() {
                       <ellipse
                         cx={0}
                         cy={0}
-                        rx={def.w / 2}
-                        ry={def.d / 2}
+                        rx={w / 2}
+                        ry={d / 2}
                         fill={withAlpha(color, item.type === 'rug' ? 0.55 : 0.3)}
                         stroke={shade(color, -0.18)}
                         strokeWidth={0.022}
                       />
                     ) : (
                       <rect
-                        x={-def.w / 2}
-                        y={-def.d / 2}
-                        width={def.w}
-                        height={def.d}
+                        x={-w / 2}
+                        y={-d / 2}
+                        width={w}
+                        height={d}
                         rx={0.035}
                         fill={withAlpha(color, item.type === 'rug' ? 0.5 : 0.24)}
                         stroke={shade(color, -0.2)}
@@ -823,10 +898,10 @@ export default function PlanEditor() {
                     )}
                     {item.type !== 'rug' && (
                       <line
-                        x1={-def.w / 2 + 0.06}
-                        y1={def.d / 2 - 0.035}
-                        x2={def.w / 2 - 0.06}
-                        y2={def.d / 2 - 0.035}
+                        x1={-w / 2 + 0.06}
+                        y1={d / 2 - 0.035}
+                        x2={w / 2 - 0.06}
+                        y2={d / 2 - 0.035}
                         stroke={shade(color, -0.24)}
                         strokeWidth={0.018}
                         strokeLinecap="round"
@@ -836,7 +911,7 @@ export default function PlanEditor() {
                       x={0}
                       y={item.type === 'rug' ? 0 : 0.055}
                       textAnchor="middle"
-                      fontSize={item.type === 'rug' ? 0.15 : 0.125}
+                      fontSize={fontSize}
                       fill={item.type === 'rug' ? '#8b7969' : '#4d4a42'}
                       fontWeight={500}
                       pointerEvents="none"
@@ -848,10 +923,10 @@ export default function PlanEditor() {
                   {isSelected && tool === 'select' && (
                     <>
                       <rect
-                        x={-def.w / 2 - 0.07}
-                        y={-def.d / 2 - 0.07}
-                        width={def.w + 0.14}
-                        height={def.d + 0.14}
+                        x={-w / 2 - 0.07}
+                        y={-d / 2 - 0.07}
+                        width={w + 0.14}
+                        height={d + 0.14}
                         rx={0.06}
                         fill="none"
                         stroke="#b2653f"
@@ -861,16 +936,16 @@ export default function PlanEditor() {
                       />
                       <line
                         x1={0}
-                        y1={-def.d / 2 - 0.07}
+                        y1={-d / 2 - 0.07}
                         x2={0}
-                        y2={-def.d / 2 - 0.3}
+                        y2={-d / 2 - 0.3}
                         stroke="#b2653f"
                         strokeWidth={0.018}
                         pointerEvents="none"
                       />
                       <circle
                         cx={0}
-                        cy={-def.d / 2 - 0.4}
+                        cy={-d / 2 - 0.4}
                         r={0.13}
                         fill="transparent"
                         style={{ cursor: 'grab' }}
@@ -878,13 +953,46 @@ export default function PlanEditor() {
                       />
                       <circle
                         cx={0}
-                        cy={-def.d / 2 - 0.4}
+                        cy={-d / 2 - 0.4}
                         r={0.065}
                         fill="#fffaf4"
                         stroke="#b2653f"
                         strokeWidth={0.022}
                         pointerEvents="none"
                       />
+                      {(
+                        [
+                          { sx: -1, sz: -1, cursor: 'nwse-resize' },
+                          { sx: 1, sz: -1, cursor: 'nesw-resize' },
+                          { sx: 1, sz: 1, cursor: 'nwse-resize' },
+                          { sx: -1, sz: 1, cursor: 'nesw-resize' },
+                        ] as const
+                      ).map((h) => (
+                        <g key={`${h.sx}-${h.sz}`}>
+                          <rect
+                            x={(h.sx * w) / 2 - 0.1}
+                            y={(h.sz * d) / 2 - 0.1}
+                            width={0.2}
+                            height={0.2}
+                            fill="transparent"
+                            style={{ cursor: h.cursor }}
+                            onPointerDown={(e) =>
+                              handleFurnitureResizePointerDown(e, item, h.sx, h.sz)
+                            }
+                          />
+                          <rect
+                            x={(h.sx * w) / 2 - 0.045}
+                            y={(h.sz * d) / 2 - 0.045}
+                            width={0.09}
+                            height={0.09}
+                            rx={0.015}
+                            fill="#fffaf4"
+                            stroke="#b2653f"
+                            strokeWidth={0.018}
+                            pointerEvents="none"
+                          />
+                        </g>
+                      ))}
                     </>
                   )}
                 </g>

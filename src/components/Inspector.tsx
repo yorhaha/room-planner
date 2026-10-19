@@ -3,8 +3,11 @@ import type { ReactNode } from 'react';
 import {
   FLOOR_COLORS,
   FURNITURE_COLORS,
+  FURNITURE_SIZE_MAX,
+  FURNITURE_SIZE_MIN,
   WALL_COLORS,
   getDef,
+  getFurnitureSize,
   withAlpha,
 } from '../catalog';
 import { clamp, fmt, wallLength } from '../geometry';
@@ -276,7 +279,7 @@ function Overview() {
             </li>
             <li>
               <span className="tip-index">4</span>
-              从家具库添加家具，拖动摆放，右侧可旋转与换色。
+              从家具库添加家具，拖动摆放，右侧可调尺寸、旋转与换色。
             </li>
           </ol>
         </Section>
@@ -534,9 +537,18 @@ function FurnitureInspector({ id }: { id: string }) {
 
   if (!item) return <Overview />;
   const def = getDef(item.type);
+  const size = getFurnitureSize(item);
   const color = item.color ?? def.color;
   const room = item.roomId ? project.rooms.find((r) => r.id === item.roomId) : null;
   const isCustomColor = Boolean(item.color);
+  const isResized =
+    Boolean(item.size) &&
+    (Math.abs(size.w - def.w) > 0.001 ||
+      Math.abs(size.d - def.d) > 0.001 ||
+      Math.abs(size.h - def.h) > 0.001);
+  const setSize = (key: 'w' | 'd' | 'h', value: number, transient: boolean) => {
+    updateFurniture(item.id, { size: { ...size, [key]: value } }, transient);
+  };
 
   return (
     <aside className="right-panel">
@@ -556,10 +568,54 @@ function FurnitureInspector({ id }: { id: string }) {
         </div>
 
         <div className="dim-chips">
-          <span>{def.w} m 宽</span>
-          <span>{def.d} m 深</span>
-          <span>{def.h} m 高</span>
+          <span>{fmt(size.w)} m 宽</span>
+          <span>{fmt(size.d)} m 深</span>
+          <span>{fmt(size.h)} m 高</span>
         </div>
+
+        <Section
+          title="尺寸"
+          aside={
+            isResized ? (
+              <button
+                className="link-btn"
+                onClick={() => updateFurniture(item.id, { size: undefined })}
+              >
+                恢复默认
+              </button>
+            ) : undefined
+          }
+        >
+          <div className="field-grid">
+            <NumField
+              label="宽度"
+              value={size.w}
+              min={FURNITURE_SIZE_MIN.w}
+              max={FURNITURE_SIZE_MAX.w}
+              step={0.05}
+              onChange={(v, t) => setSize('w', v, t)}
+            />
+            <NumField
+              label="深度"
+              value={size.d}
+              min={FURNITURE_SIZE_MIN.d}
+              max={FURNITURE_SIZE_MAX.d}
+              step={0.05}
+              onChange={(v, t) => setSize('d', v, t)}
+            />
+          </div>
+          <NumField
+            label="高度"
+            value={size.h}
+            min={FURNITURE_SIZE_MIN.h}
+            max={FURNITURE_SIZE_MAX.h}
+            step={0.05}
+            onChange={(v, t) => setSize('h', v, t)}
+          />
+          <p className="hint">
+            也可以在平面图中拖动选中家具四角的方块直接缩放，按住 Shift 保持宽深比例。
+          </p>
+        </Section>
 
         <Section title="朝向">
           <div className="rotation-row">

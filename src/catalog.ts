@@ -1,4 +1,4 @@
-import type { FurnitureType } from './types';
+import type { Furniture, FurnitureSize, FurnitureType } from './types';
 
 export type Category = '起居' | '卧室' | '餐厨' | '卫浴';
 
@@ -39,7 +39,21 @@ export const FURNITURE: Record<FurnitureType, FurnitureDef> = {
   bathtub: { type: 'bathtub', name: '浴缸', category: '卫浴', w: 1.65, d: 0.8, h: 0.56, color: '#ecebe6', emoji: '🛁' },
   shower: { type: 'shower', name: '淋浴房', category: '卫浴', w: 0.95, d: 0.95, h: 2.0, color: '#dfe7e7', emoji: '🚿' },
   washer: { type: 'washer', name: '洗衣机', category: '卫浴', w: 0.6, d: 0.62, h: 0.85, color: '#d3d8d8', emoji: '🧺' },
+  officeChair: { type: 'officeChair', name: '办公椅', category: '卧室', w: 0.62, d: 0.62, h: 1.05, color: '#65707a', emoji: '💺', round: true },
+  loungeChair: { type: 'loungeChair', name: '休闲椅', category: '起居', w: 0.78, d: 0.82, h: 0.8, color: '#b9896b', emoji: '🪑' },
+  stool: { type: 'stool', name: '吧台凳', category: '餐厨', w: 0.4, d: 0.4, h: 0.72, color: '#a07a55', emoji: '🍸', round: true },
+  bench: { type: 'bench', name: '长凳', category: '餐厨', w: 1.3, d: 0.4, h: 0.46, color: '#a8805b', emoji: '🪵' },
+  sideTable: { type: 'sideTable', name: '边几', category: '起居', w: 0.45, d: 0.45, h: 0.55, color: '#a8805b', emoji: '☕', round: true },
+  dresser: { type: 'dresser', name: '斗柜', category: '卧室', w: 1.1, d: 0.45, h: 0.85, color: '#a37a5a', emoji: '🗄️' },
+  crib: { type: 'crib', name: '婴儿床', category: '卧室', w: 0.72, d: 1.35, h: 0.95, color: '#c8a97e', emoji: '🧸' },
+  vanity: { type: 'vanity', name: '洗手台', category: '卫浴', w: 0.9, d: 0.55, h: 0.85, color: '#ded8cc', emoji: '🧴' },
+  kitchenIsland: { type: 'kitchenIsland', name: '中岛台', category: '餐厨', w: 1.6, d: 0.85, h: 0.9, color: '#d6d0c2', emoji: '🥘' },
+  shoeCabinet: { type: 'shoeCabinet', name: '鞋柜', category: '起居', w: 1.0, d: 0.35, h: 1.1, color: '#9c7b5d', emoji: '👟' },
 };
+
+/** 单件家具缩放的允许范围（米） */
+export const FURNITURE_SIZE_MIN = { w: 0.15, d: 0.15, h: 0.05 } as const;
+export const FURNITURE_SIZE_MAX = { w: 12, d: 12, h: 4 } as const;
 
 export const FLOOR_COLORS = [
   '#e8ddca',
@@ -76,6 +90,13 @@ export const FURNITURE_COLORS = [
 
 export function getDef(type: FurnitureType): FurnitureDef {
   return FURNITURE[type];
+}
+
+/** 家具的实际尺寸：优先使用单件覆盖值，否则回落到家具库默认尺寸 */
+export function getFurnitureSize(item: Pick<Furniture, 'type' | 'size'>): FurnitureSize {
+  const def = getDef(item.type);
+  if (!item.size) return { w: def.w, d: def.d, h: def.h };
+  return item.size;
 }
 
 /** 简单的十六进制明暗调整 */

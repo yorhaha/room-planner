@@ -56,7 +56,23 @@ export type FurnitureType =
   | 'toilet'
   | 'bathtub'
   | 'shower'
-  | 'washer';
+  | 'washer'
+  | 'officeChair'
+  | 'loungeChair'
+  | 'stool'
+  | 'bench'
+  | 'sideTable'
+  | 'dresser'
+  | 'crib'
+  | 'vanity'
+  | 'kitchenIsland'
+  | 'shoeCabinet';
+
+export interface FurnitureSize {
+  w: number;
+  d: number;
+  h: number;
+}
 
 export interface Furniture {
   id: string;
@@ -68,6 +84,8 @@ export interface Furniture {
   /** 顺时针角度（平面视图），本地 +z 为家具正面 */
   rotation: number;
   color?: string;
+  /** 单件家具的实际尺寸，缺省时使用家具库默认尺寸 */
+  size?: FurnitureSize;
 }
 
 export interface Project {
